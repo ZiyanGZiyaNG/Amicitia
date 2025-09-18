@@ -1,5 +1,6 @@
+/* 註冊 UI + DB */
 package com.example.amicitia.ui.register
-//
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -19,7 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.amicitia.ui.login.PrimaryBlue
 import kotlinx.coroutines.launch
-import org.w3c.dom.Text
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.tasks.await
 
 private val PrimeColor = Color(0xFF3F51B5)
 
@@ -40,8 +44,10 @@ fun RegisterScreen(navController: NavController) {
     var fieldErrorConfirm by remember { mutableStateOf<String?>(null) }
     var fieldErrorNickname by remember { mutableStateOf<String?>(null) }
 
+    var isLoading by remember { mutableStateOf(false) } // <--- 補上這個
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val auth = Firebase.auth
 
     // 驗證函式
     fun submitUiOnly(): Boolean {
@@ -76,16 +82,40 @@ fun RegisterScreen(navController: NavController) {
         return ok
     }
 
-    // 外層背景鋪滿
+    // Firebase 註冊函式
+    suspend fun registerToFirebase(email: String, password: String, nickname: String) {
+        try {
+            isLoading = true
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val user = result.user ?: error("User is null after registration")
+
+            val profile = UserProfileChangeRequest.Builder()
+                .setDisplayName(nickname)
+                .build()
+            user.updateProfile(profile).await()
+
+            snackbarHostState.showSnackbar("註冊成功，歡迎 $nickname！")
+            navController.navigate("login") {
+                popUpTo("register") { inclusive = true }
+                launchSingleTop = true
+            }
+        } catch (e: Exception) {
+            snackbarHostState.showSnackbar(e.message ?: "註冊失敗，請稍候再試")
+        } finally {
+            isLoading = false
+        }
+    }
+
+    // UI
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFEFF6FF)) // 整個畫面背景藍色
+            .background(Color(0xFFEFF6FF))
     ) {
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-            containerColor = Color.Transparent,   // Scaffold 本身透明
-            contentWindowInsets = WindowInsets(0) // 避免邊緣白色
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0)
         ) { innerPadding ->
             Column(
                 modifier = Modifier
@@ -186,7 +216,6 @@ fun RegisterScreen(navController: NavController) {
                         )
                     )
                     Text("我同意服務條款")
-
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -196,21 +225,22 @@ fun RegisterScreen(navController: NavController) {
                     onClick = {
                         if (submitUiOnly()) {
                             scope.launch {
-                                snackbarHostState.showSnackbar("註冊成功，即將跳轉到登入頁面")
-                                navController.navigate("login") {
-                                    popUpTo("register") { inclusive = true }
-                                    launchSingleTop = true
-                                }
+                                registerToFirebase(email.trim(), password, nickname.trim())
                             }
                         }
                     },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimeColor, contentColor = Color.White)
                 ) {
-                    Text("註冊")
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
+                    } else {
+                        Text("註冊")
+                    }
                 }
 
                 // 返回按鈕
