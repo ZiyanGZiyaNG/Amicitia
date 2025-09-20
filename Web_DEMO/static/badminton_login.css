@@ -1,0 +1,295 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    width: 100%;
+    max-width: 1300px;
+    height: 700px;
+    background: #1e1e1e;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    margin-left: -50px;
+    border: 1px solid #333;
+}
+
+.left-section {
+    flex: 1.5;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 40px;
+}
+
+.badminton-player {
+    width: 800px;
+    height: 900px;
+    background: transparent;
+    border-radius: 20px;
+    position: relative;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2));
+}
+
+.right-section {
+    flex: 0.7;
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+}
+
+.form-container {
+    width: 100%;
+    max-width: 350px;
+}
+
+.title-btn {
+    width: 100%;
+    padding: 20px;
+    background: #333;
+    border: 2px solid #555;
+    border-radius: 15px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 30px;
+    cursor: pointer;
+}
+
+.title-btn:hover {
+    /* 移除懸停效果 */
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-label {
+    display: block;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 18px;
+    background: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 15px;
+    font-size: 16px;
+    color: #fff;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+/* 密碼輸入框特殊樣式 */
+.password-container .form-input {
+    padding-right: 80px;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+}
+
+.form-input::placeholder {
+    color: #888;
+}
+
+.password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 0;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    font-size: 14px;
+    padding: 0 12px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    z-index: 10;
+    min-width: 50px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password:hover {
+    color: #8b5cf6;
+    background-color: rgba(139, 92, 246, 0.1);
+}
+
+.toggle-password:active {
+    transform: scale(0.95);
+    background-color: rgba(139, 92, 246, 0.2);
+}
+
+.remember-forgot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    cursor: pointer;
+}
+
+.remember-me input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.forgot-password {
+    color: #8b5cf6;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+    color: #7c3aed;
+    text-decoration: underline;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 20px;
+    background: #8b5cf6;
+    border: 2px solid #8b5cf6;
+    border-radius: 15px;
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+.create-account-btn {
+    width: 100%;
+    padding: 20px;
+    background: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 15px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.create-account-btn:hover {
+    background: #333;
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* 移除羽球圖示區域 */
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+        margin: 20px;
+    }
+    
+    .left-section {
+        padding: 30px 20px;
+    }
+    
+    .badminton-player {
+        width: 600px;
+        height: 650px;
+    }
+    
+    .right-section {
+        padding: 40px 20px;
+    }
+}
+
+/* 訊息彈出樣式 */
+.message-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.message-popup.success {
+    background: #10b981;
+    border-left: 4px solid #059669;
+}
+
+.message-popup.error {
+    background: #ef4444;
+    border-left: 4px solid #dc2626;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+} 

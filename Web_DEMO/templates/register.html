@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羽球俱樂部 - 註冊</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1300px;
+            height: 700px;
+            background: #1e1e1e;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .left-section {
+            flex: 1.5;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 40px;
+        }
+
+        .badminton-player {
+            width: 800px;
+            height: 900px;
+            background: transparent;
+            border-radius: 20px;
+            position: relative;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2));
+        }
+
+        .right-section {
+            flex: 0.7;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 40px;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .title-btn {
+            width: 100%;
+            padding: 20px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 18px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 15px;
+            font-size: 16px;
+            color: #fff;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+        }
+
+        .form-input::placeholder {
+            color: #888;
+        }
+
+        .password-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 0;
+            height: 100%;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 14px;
+            padding: 0 12px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            z-index: 10;
+            min-width: 50px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-password:hover {
+            color: #8b5cf6;
+            background-color: rgba(139, 92, 246, 0.1);
+        }
+
+        .password-container .form-input {
+            padding-right: 80px;
+            box-sizing: border-box;
+        }
+
+        .register-btn {
+            width: 100%;
+            padding: 20px;
+            background: #8b5cf6;
+            border: 2px solid #8b5cf6;
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .login-link {
+            width: 100%;
+            padding: 20px;
+            background: #2a2a2a;
+            border: 2px solid #555;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+        }
+
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .flash-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .flash-message.error {
+            background: #ef4444;
+            color: white;
+            border-left: 4px solid #dc2626;
+        }
+
+        .flash-message.success {
+            background: #10b981;
+            color: white;
+            border-left: 4px solid #059669;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+                margin: 20px;
+            }
+            
+            .left-section {
+                padding: 30px 20px;
+            }
+            
+            .badminton-player {
+                width: 600px;
+                height: 650px;
+            }
+            
+            .right-section {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左側視覺區域 -->
+        <div class="left-section">
+            <div class="badminton-player">
+                <img src="{{ url_for('static', filename='images/badminton_player.png') }}" alt="羽球運動員" class="player-image">
+            </div>
+        </div>
+
+        <!-- 右側註冊表單 -->
+        <div class="right-section">
+            <div class="form-container">
+                <button class="title-btn">加入羽球俱樂部</button>
+                
+                <!-- Flash 訊息 -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages">
+                            {% for category, message in messages %}
+                                <div class="flash-message {{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST" action="{{ url_for('register') }}">
+                    <div class="form-group">
+                        <label class="form-label">使用者名稱</label>
+                        <input type="text" name="username" class="form-input" placeholder="請輸入使用者名稱" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">電子郵件</label>
+                        <input type="email" name="email" class="form-input" placeholder="請輸入電子郵件" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">密碼</label>
+                        <div class="password-container">
+                            <input type="password" name="password" id="password" class="form-input" placeholder="請輸入密碼" required>
+                            <button type="button" class="toggle-password" onclick="togglePassword()">顯示</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">確認密碼</label>
+                        <div class="password-container">
+                            <input type="password" name="confirm_password" id="confirm_password" class="form-input" placeholder="請再次輸入密碼" required>
+                            <button type="button" class="toggle-password" onclick="toggleConfirmPassword()">顯示</button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="register-btn">註冊帳號</button>
+                </form>
+                
+                <a href="{{ url_for('login') }}" class="login-link">已有帳號？立即登入</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 密碼顯示切換功能
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.querySelector('.toggle-password');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.textContent = '隱藏';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '顯示';
+            }
+        }
+
+        function toggleConfirmPassword() {
+            const passwordInput = document.getElementById('confirm_password');
+            const toggleBtn = passwordInput.nextElementSibling;
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.textContent = '隱藏';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '顯示';
+            }
+        }
+
+        // 表單互動效果
+        const inputs = document.querySelectorAll('.form-input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.style.transform = 'scale(1.02)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body>
+</html> 

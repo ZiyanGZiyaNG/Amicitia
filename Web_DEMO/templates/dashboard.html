@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羽球俱樂部 - 主控台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: #0e1a30;
+            color: #fff;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #1a2332;
+            border-bottom: 1px solid #243353;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #8b5cf6;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #243353;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .user-profile:hover {
+            background: #2d4a6b;
+        }
+
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .welcome-section {
+            background: #1a2332;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #243353;
+        }
+
+        .welcome-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #8b5cf6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: #243353;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #2d4a6b;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #a1a1aa;
+            font-size: 0.9rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .feature-card {
+            background: #1a2332;
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid #243353;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #8b5cf6;
+        }
+
+        .feature-description {
+            color: #a1a1aa;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #8b5cf6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .feature-btn:hover {
+            background: #7c3aed;
+        }
+
+        .quick-actions {
+            background: #1a2332;
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid #243353;
+        }
+
+        .quick-actions h2 {
+            margin-bottom: 1.5rem;
+            color: #8b5cf6;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 1rem 2rem;
+            background: #243353;
+            color: white;
+            border: 1px solid #2d4a6b;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .action-btn:hover {
+            background: #2d4a6b;
+            border-color: #8b5cf6;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #1a2332;
+            margin: 5% auto;
+            padding: 2rem;
+            border: 1px solid #243353;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #243353;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: #8b5cf6;
+        }
+
+        .close {
+            color: #a1a1aa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #ef4444;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #243353;
+            border: 1px solid #2d4a6b;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+        }
+
+        .save-btn {
+            background: #8b5cf6;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .save-btn:hover {
+            background: #7c3aed;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .user-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 頁首 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">🏸 羽球俱樂部</div>
+            <div class="user-info">
+                <div class="user-profile" onclick="showProfileModal()">
+                    <span>👤</span>
+                    <span>{{ current_user.nickname or current_user.username }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">登出</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容 -->
+    <main class="main-content">
+        <!-- 歡迎區塊 -->
+        <section class="welcome-section">
+            <h1 class="welcome-title">歡迎回來，{{ current_user.nickname or current_user.username }}！</h1>
+            <p>準備好找球友一起打球了嗎？讓我們開始今天的羽球之旅吧！</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ current_user.rating }}</div>
+                    <div class="stat-label">當前戰力</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ current_user.rank }}</div>
+                    <div class="stat-label">段位等級</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ "%.1f"|format(current_user.win_rate) }}%</div>
+                    <div class="stat-label">勝率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ current_user.total_matches }}</div>
+                    <div class="stat-label">總比賽數</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 功能區塊 -->
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3 class="feature-title">尋找球友</h3>
+                <p class="feature-description">根據位置、戰力和段位找到最適合的球友，開始一場精彩的比賽！</p>
+                <a href="#" class="feature-btn" onclick="showFindPlayers()">開始尋找</a>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">比賽記錄</h3>
+                <p class="feature-description">查看您的比賽歷史、戰績統計和進步軌跡，追蹤您的羽球成長之路。</p>
+                <a href="#" class="feature-btn" onclick="showMatchHistory()">查看記錄</a>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🏆</div>
+                <h3 class="feature-title">排行榜</h3>
+                <p class="feature-description">與其他球友比較戰力、勝率和段位，挑戰自我，登上排行榜頂端！</p>
+                <a href="#" class="feature-btn" onclick="showLeaderboard()">查看排行</a>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <section class="quick-actions">
+            <h2>快速操作</h2>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="updateLocation()">📍 更新位置</button>
+                <button class="action-btn" onclick="showProfileModal()">👤 編輯資料</button>
+                <button class="action-btn" onclick="showSettings()">⚙️ 設定</button>
+                <button class="action-btn" onclick="showHelp()">❓ 幫助</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- 個人資料編輯彈出視窗 -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">編輯個人資料</h3>
+                <span class="close" onclick="closeProfileModal()">&times;</span>
+            </div>
+            
+            <form id="profileForm">
+                <div class="form-group">
+                    <label class="form-label">暱稱</label>
+                    <input type="text" class="form-input" id="nickname" value="{{ current_user.nickname or current_user.username }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">段位</label>
+                    <select class="form-input" id="rank">
+                        <option value="青銅" {% if current_user.rank == '青銅' %}selected{% endif %}>青銅</option>
+                        <option value="白銀" {% if current_user.rank == '白銀' %}selected{% endif %}>白銀</option>
+                        <option value="黃金" {% if current_user.rank == '黃金' %}selected{% endif %}>黃金</option>
+                        <option value="白金" {% if current_user.rank == '白金' %}selected{% endif %}>白金</option>
+                        <option value="鑽石" {% if current_user.rank == '鑽石' %}selected{% endif %}>鑽石</option>
+                        <option value="大師" {% if current_user.rank == '大師' %}selected{% endif %}>大師</option>
+                        <option value="宗師" {% if current_user.rank == '宗師' %}selected{% endif %}>宗師</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">戰力分數</label>
+                    <input type="number" class="form-input" id="rating" value="{{ current_user.rating }}" min="300" max="3300">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">勝率 (%)</label>
+                    <input type="number" class="form-input" id="winRate" value="{{ "%.1f"|format(current_user.win_rate) }}" min="0" max="100" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">總比賽數</label>
+                    <input type="number" class="form-input" id="totalMatches" value="{{ current_user.total_matches }}" min="0">
+                </div>
+                
+                <button type="submit" class="save-btn">💾 儲存變更</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 顯示個人資料彈出視窗
+        function showProfileModal() {
+            document.getElementById('profileModal').style.display = 'block';
+        }
+
+        // 關閉個人資料彈出視窗
+        function closeProfileModal() {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+
+        // 點擊彈出視窗外部關閉
+        window.onclick = function(event) {
+            const modal = document.getElementById('profileModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 處理個人資料表單提交
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                nickname: document.getElementById('nickname').value,
+                rank: document.getElementById('rank').value,
+                rating: parseInt(document.getElementById('rating').value),
+                win_rate: parseFloat(document.getElementById('winRate').value),
+                total_matches: parseInt(document.getElementById('totalMatches').value)
+            };
+
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    alert('個人資料更新成功！');
+                    closeProfileModal();
+                    location.reload(); // 重新載入頁面以顯示更新後的資料
+                } else {
+                    alert('更新失敗，請稍後再試');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('發生錯誤，請稍後再試');
+            }
+        });
+
+        // 更新位置
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    try {
+                        const response = await fetch('/api/location', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                latitude: lat,
+                                longitude: lng
+                            })
+                        });
+
+                        if (response.ok) {
+                            alert('位置更新成功！');
+                        } else {
+                            alert('位置更新失敗，請稍後再試');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('發生錯誤，請稍後再試');
+                    }
+                }, function(error) {
+                    alert('無法獲取位置資訊：' + error.message);
+                });
+            } else {
+                alert('您的瀏覽器不支援地理位置功能');
+            }
+        }
+
+        // 其他功能函數
+        function showFindPlayers() {
+            alert('尋找球友功能即將推出！');
+        }
+
+        function showMatchHistory() {
+            alert('比賽記錄功能即將推出！');
+        }
+
+        function showLeaderboard() {
+            alert('排行榜功能即將推出！');
+        }
+
+        function showSettings() {
+            alert('設定功能即將推出！');
+        }
+
+        function showHelp() {
+            alert('幫助功能即將推出！');
+        }
+    </script>
+</body>
+</html> 

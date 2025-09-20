@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>羽球配對｜附近玩家偵測＋場地地圖（免 API）＋3戰2勝記分板</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#121a2a; --muted:#9fb0d0; --text:#e6eefc; --accent:#4cc9f0; --accent2:#9d4edd; --good:#22c55e; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1000px 700px at 10% -10%,#10203a,transparent),radial-gradient(700px 500px at 90% -10%,#1a2b4d,transparent),var(--bg);color:var(--text);font-family:"Noto Sans TC",system-ui,-apple-system,Segoe UI,Roboto,Arial,"PingFang TC","Microsoft JhengHei",sans-serif}
+    header{position:sticky;top:0;z-index:40;background:rgba(11,18,32,.85);backdrop-filter:blur(8px);border-bottom:1px solid #1f2a44}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:20px;display:flex;gap:10px;align-items:center}
+    h1 .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#0b1220}
+    main{max-width:1200px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+    @media (max-width:980px){main{display:block}}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.005));border:1px solid #1e2a44;border-radius:18px;box-shadow:0 6px 30px rgb(0 0 0 / 25%);padding:16px}
+    .card h2{margin:0 0 10px 0;font-size:18px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .field{flex:1;min-width:160px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type="text"],input[type="number"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #243353;background:#0f1725;color:var(--text)}
+    input[type="range"]{width:100%}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid #2a3a5f;background:#0f1725;color:var(--text);cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;font-weight:700;color:#0b1220}
+    .btn.ghost{background:transparent;border:1px dashed #2a3a5f}
+    .stack{display:flex;flex-direction:column;gap:12px}
+    .pill{padding:4px 10px;border-radius:999px;background:#0e1a30;border:1px solid #243353;color:var(--muted);font-size:12px}
+    .list{display:grid;grid-template-columns:1fr;gap:10px}
+    .player{display:grid;grid-template-columns:1.2fr .8fr .8fr .7fr .7fr auto;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid #213050;border-radius:14px;padding:10px}
+    @media (max-width:900px){.player{grid-template-columns:1fr .7fr .7fr auto}}
+    .rank{font-weight:800}
+    .rank.B{color:#A97142}.rank.S{color:#c0c0c0}.rank.G{color:#ffd700}.rank.D{color:#6fd3ff}.rank.M{color:#b89cff}
+    .scorebar{height:8px;background:#0f1a2c;border:1px solid #213050;border-radius:999px;overflow:hidden}
+    .scorebar>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+    .scoreboard{display:grid;grid-template-columns:1fr 80px 1fr;gap:12px;align-items:center}
+    .scorebox{background:#0e1a30;border:1px solid #243353;border-radius:16px;padding:16px;text-align:center}
+    .score{font-size:42px;font-weight:900}
+    .setwins{font-size:12px;color:var(--muted)}
+    .big{font-size:18px;font-weight:800}
+    .log{max-height:220px;overflow:auto;background:#0e1a30;border:1px solid #243353;border-radius:12px;padding:10px}
+    .mapwrap{border-radius:18px;overflow:hidden;border:1px solid #1e2a44}
+    iframe{width:100%;height:360px;border:0}
+    .muted{color:var(--muted)}
+    footer{max-width:1200px;margin:20px auto;padding:0 16px 28px;color:var(--muted);font-size:12px}
+    
+    /* Profile 彈出視窗樣式 */
+    .profile-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    
+    .profile-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 18px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .profile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--accent);
+      padding-bottom: 12px;
+    }
+    
+    .profile-close {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    
+    .profile-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <h1><span class="logo">&#127992;</span> 羽你同行 · Badminton Match</h1>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="pill">🌏 免 API 的 Google 地圖內嵌 · 📍 HTML5 位置偵測 · 🧮 哈弗辛距離</div>
+        <button id="profile-btn" class="btn primary" style="display:flex;align-items:center;gap:6px">
+          👤 Profile
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="stack">
+      <!-- 位置偵測 / 配對清單 -->
+      <div class="card">
+        <h2>📍 位置偵測</h2>
+        <div class="row" style="align-items:center;justify-content:space-between;margin-top:8px">
+          <div class="row" style="align-items:center;gap:10px">
+            <span class="muted">點擊右上角 Profile 按鈕來管理個人資料</span>
+          </div>
+          <div class="row" style="align-items:center;gap:10px">
+            <button class="btn" id="locate-btn">📍 重新偵測位置</button>
+            <span class="muted" id="loc-status">尚未偵測</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🧭 附近玩家＆配對</h2>
+        <div class="grid2">
+          <div>
+            <label>距離門檻（N 公尺）：<b id="range-label">2000 m</b></label>
+            <input id="range" type="range" min="200" max="10000" step="100" value="2000"/>
+          </div>
+          <div>
+            <label>產生虛擬玩家數（用於示範）：<b id="fakeN-label">12</b></label>
+            <input id="fakeN" type="range" min="4" max="40" step="1" value="12"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:center;gap:10px">
+          <span class="pill" id="me-where">位置: --</span>
+          <span class="pill">共 <b id="near-count">0</b> 位玩家符合</span>
+          <span class="pill">依相似度＆距離排序</span>
+        </div>
+        <div class="list" id="players-list" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h2>🎮 比賽記分板（3戰2勝）</h2>
+        <div class="row" style="align-items:center;gap:10px;margin-bottom:8px">
+          <span class="pill" id="match-meta">尚未開始｜請在上方清單點「開賽」</span>
+          <button class="btn ghost" id="reset-match">🔄 重置整場</button>
+        </div>
+        <div class="row" id="totals-row" style="align-items:center;gap:10px;margin:8px 0">
+          <span class="pill">總比分（累計）：<b id="totalA">0</b> - <b id="totalB">0</b></span>
+          <span class="pill">本局戰力（以註冊戰力為基礎）：<b id="powerA_now">--</b> / <b id="powerB_now">--</b></span>
+          <span class="pill">平均戰力（已完局）：<b id="powerA_avg">--</b> / <b id="powerB_avg">--</b></span>
+        </div>
+        <div class="scoreboard">
+          <div class="scorebox">
+            <div class="big" id="A-name">玩家A</div>
+            <div class="score" id="A-score">0</div>
+            <div class="setwins">局數：<b id="A-sets">0</b></div>
+            <div class="row" style="justify-content:center;margin-top:6px;gap:8px">
+              <button class="btn" id="A-plus">+1 分</button>
+              <button class="btn" id="A-minus">-1 分</button>
+            </div>
+          </div>
+          <div style="text-align:center" class="muted">
+            <div>目前為第 <b id="game-no">1</b> 局</div>
+            <div style="font-size:11px">（先拿下 2 局者獲勝）</div>
+            <div class="row" style="justify-content:center;margin-top:8px;gap:8px">
+              <button class="btn" id="next-game">下一局</button>
+              <button class="btn" id="end-game">結束比賽</button>
+            </div>
+          </div>
+          <div class="scorebox">
+            <div class="big" id="B-name">玩家B</div>
+            <div class="score" id="B-score">0</div>
+            <div class="setwins">局數：<b id="B-sets">0</b></div>
+            <div class="row" style="justify-content:center;margin-top:6px;gap:8px">
+              <button class="btn" id="B-plus">+1 分</button>
+              <button class="btn" id="B-minus">-1 分</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px" class="grid2">
+          <div>
+            <label>紀錄（最近在上）</label>
+            <div class="log" id="log"></div>
+          </div>
+          <div class="card" style="background:#0a1426">
+            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+              <span class="pill">規則：採每局 21 分、領先 2 分致勝（上限 30 分）</span>
+              <span class="pill">三局兩勝</span>
+              <span class="pill">可於任何時點點「結束比賽」判定勝負</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>💬 對戰聊天室</h2>
+        <div class="log" id="chat-log" style="height:220px"></div>
+        <div class="row" style="margin-top:8px;gap:8px;align-items:end">
+          <div class="field"><label>發話者</label>
+            <select id="chat-sender">
+              <option value="A">我方</option>
+              <option value="B">對手</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1"><label>訊息</label><input id="chat-input" type="text" placeholder="輸入訊息..." /></div>
+          <button class="btn" id="chat-send">送出</button>
+          <button class="btn ghost" id="chat-clear">清空</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🧪 自動測試</h2>
+        <div id="test-results" class="log" style="height:160px"></div>
+        <div class="row"><button class="btn" id="run-tests">執行測試</button></div>
+      </div>
+    </section>
+
+    <section class="stack">
+      <!-- 地圖 / 搜尋場地 -->
+      <div class="card">
+        <h2>🗺️ 附近場地（免 API 的 Google 地圖）</h2>
+        <div class="row" style="align-items:end;gap:12px">
+          <div class="field"><label>查詢關鍵字</label>
+            <select id="map-key">
+              <option value="羽球館" selected>羽球館</option>
+              <option value="badminton court">badminton court</option>
+              <option value="體育館 羽球">體育館 羽球</option>
+            </select>
+          </div>
+          <div class="field"><label>縮放（z，越大越近）</label><input id="map-z" type="number" min="10" max="18" value="14"></div>
+          <button class="btn" id="refresh-map">🔎 重新搜尋</button>
+          <a class="btn primary" id="open-gmaps" href="#" target="_blank" rel="noopener">在 Google 地圖中開啟</a>
+          <button class="btn" id="net-check">🛡️ 網路檢查/允許</button>
+          <span class="pill" id="net-state">外網：未允許</span>
+          <label class="pill" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="disable-map"> 停用地圖（避免彈窗）</label>
+        </div>
+        <div class="mapwrap" style="margin-top:10px"><iframe id="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>
+        <div class="muted" style="margin-top:8px">提示：本頁使用 Google 地圖的 <b>iframe 內嵌</b>（<b>免 API 金鑰</b>）來搜尋附近的羽球場地；實際結果取決於 Google 地圖的資料收錄情況。</div>
+      </div>
+
+      <div class="card">
+        <h2>ℹ️ 使用說明</h2>
+        <ul>
+          <li>先在「我的面板」填寫資料並按下「儲存 / 套用」。</li>
+          <li>按「重新偵測位置」授權定位（需在 HTTPS 網站），或使用預設位置。</li>
+          <li>調整「距離門檻」後，系統會找出 <b>N 公尺</b> 內最適合的對手（依 <b>排位、勝率、戰力分</b>、距離計分）。</li>
+          <li>在候選清單按「開賽」可將雙方帶入下方的 <b>3戰2勝記分板</b>，並於每分制下記錄比數與局數。</li>
+          <li>右側地圖以 <b>iframe 內嵌</b>方式搜尋「羽球館」等關鍵字，無需任何 API 金鑰。</li>
+          <li>記分板即時統計：顯示「總比分（累計各局＋當前局）」與「戰力」。戰力計算：以註冊戰力為基礎 <code>基礎戰力（註冊） + (自己得分 / 該局總得分 × 100 − 50)</code>；下限 0；每局（最多三局）結束會記錄本局戰力並顯示已完局的平均值。</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Profile 彈出視窗 -->
+  <div id="profile-modal" class="profile-modal">
+    <div class="profile-content">
+      <div class="profile-header">
+        <h2>👤 個人資料</h2>
+        <button class="profile-close" id="profile-close">&times;</button>
+      </div>
+      
+      <div class="stack">
+        <div class="row">
+          <div class="field"><label>暱稱</label><input id="profile-name" type="text" placeholder="例如：阿羽"/></div>
+          <div class="field"><label>排位等級</label>
+            <select id="profile-rank">
+              <option value="青銅">青銅</option>
+              <option value="白銀">白銀</option>
+              <option value="黃金" selected>黃金</option>
+              <option value="鑽石">鑽石</option>
+              <option value="大師">大師</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label>戰力分（得分）</label><input id="profile-rating" type="number" min="200" max="3500" step="10" value="1500"/></div>
+          <div class="field"><label>勝率（%）</label><input id="profile-win" type="number" min="0" max="100" step="1" value="55"/></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>總場次</label><input id="profile-matches" type="number" min="0" max="9999" step="1" value="120"/></div>
+        </div>
+        
+        <div class="row" style="justify-content: center; margin-top: 20px;">
+          <button class="btn primary" id="profile-save">💾 儲存個人資料</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ⚠️ 若無法定位：請確保以 HTTPS 瀏覽、瀏覽器允許「位置」權限，或改用預設座標（台北市政府）。所有資料僅存於本機（LocalStorage），不會上傳伺服器。
+  </footer>
+
+  <script>
+// ==== 羽球配對＋場地搜尋＋記分板（相容性修正版）====
+(function(){
+  // ====== 工具：距離（哈弗辛）與排名映射 ======
+  var RANKS = ["青銅","白銀","黃金","鑽石","大師"];
+  var RANK_CODE = {"青銅":"B","白銀":"S","黃金":"G","鑽石":"D","大師":"M"};
+  var RANK_VAL  = {"青銅":1,"白銀":2,"黃金":3,"鑽石":4,"大師":5};
+  function clamp(v,min,max){ v=Number(v)||0; if(v<min) return min; if(v>max) return max; return v; }
+  function haversine(lat1, lon1, lat2, lon2){
+    var R = 6371000; // m
+    function toRad(d){return d*Math.PI/180;}
+    var dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  // ====== 狀態 ======
+  var state = {
+    me: {name: "阿羽", rank: "黃金", rating: 1500, win: 55, matches: 120},
+    myLoc: {lat: 25.03746, lng: 121.564558}, // 預設：台北市政府
+    players: [],
+    range: 2000,
+    fakeN: 12,
+    match: {
+      A: {name:"玩家A", sets:0, score:0},
+      B: {name:"玩家B", sets:0, score:0},
+      game: 1, over: false, log: [],
+      totals: {A:0, B:0},
+      base: {A:100, B:100},
+      power: {A_now:0, B_now:0},
+      gamesPower: []
+    }
+  };
+
+  // ====== DOM 參照 ======
+  function $(s){ return document.querySelector(s); }
+  var listEl = $('#players-list');
+  var nearCountEl = $('#near-count');
+  var meWhereEl = $('#me-where');
+  var locStatusEl = $('#loc-status');
+
+  // ====== 載入 / 儲存 Profile ======
+  function loadProfile(){
+    try{ var raw = localStorage.getItem('bm_profile'); if(raw){ state.me = JSON.parse(raw); } }catch(e){}
+    var n=$('#me-name'), r=$('#me-rank'), rt=$('#me-rating'), w=$('#me-win'), m=$('#me-matches');
+    if(n) n.value = state.me.name || '';
+    if(r) r.value = state.me.rank || '黃金';
+    if(rt) rt.value = (state.me.rating!=null? state.me.rating:1500);
+    if(w) w.value = (state.me.win!=null? state.me.win:55);
+    if(m) m.value = (state.me.matches!=null? state.me.matches:0);
+  }
+  function saveProfile(){
+    state.me = {
+      name: (($('#me-name')||{}).value||'阿羽').trim(),
+      rank: (($('#me-rank')||{}).value)||'黃金',
+      rating: clamp((($('#me-rating')||{}).value), 200, 3500),
+      win: clamp((($('#me-win')||{}).value), 0, 100),
+      matches: clamp((($('#me-matches')||{}).value), 0, 9999)
+    };
+    try{ localStorage.setItem('bm_profile', JSON.stringify(state.me)); }catch(e){}
+    var hint=$('#save-hint'); if(hint){ hint.textContent='已儲存'; setTimeout(function(){hint.textContent='（會儲存在本機瀏覽器）';}, 1800); }
+    render();
+    updateBoard();
+  }
+
+  // ====== 位置偵測 ======
+  function setMyLoc(lat,lng){ state.myLoc = {lat:lat,lng:lng}; if(meWhereEl){ meWhereEl.textContent = '位置: '+lat.toFixed(5)+', '+lng.toFixed(5); } updateMap(); render(); }
+  function locate(){
+    if(!navigator.geolocation){ if(locStatusEl){ locStatusEl.textContent='此瀏覽器不支援定位，使用預設座標'; } setMyLoc(state.myLoc.lat,state.myLoc.lng); return; }
+    if(locStatusEl){ locStatusEl.textContent='偵測中...'; }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var lat = pos.coords.latitude; var lng = pos.coords.longitude;
+      if(locStatusEl){ locStatusEl.textContent='定位成功'; }
+      setMyLoc(lat,lng);
+    }, function(err){
+      if(locStatusEl){ locStatusEl.textContent='定位失敗，改用預設座標'; }
+      setMyLoc(state.myLoc.lat,state.myLoc.lng);
+    }, {enableHighAccuracy:true, timeout:8000, maximumAge:10000});
+  }
+
+  // ====== 產生虛擬玩家（示範用，基於當前位置） ======
+  function genFakePlayers(){
+    var N = state.fakeN;
+    var arr = [];
+    for(var i=0;i<N;i++){
+      var d = Math.random()*3; // km 半徑
+      var brg = Math.random()*2*Math.PI;
+      var mToDegLat = d*1000/111320; // rough
+      var lat = state.myLoc.lat + Math.cos(brg)*mToDegLat;
+      var lng = state.myLoc.lng + Math.sin(brg)*mToDegLat/Math.cos(state.myLoc.lat*Math.PI/180);
+      var myR = RANK_VAL[state.me.rank];
+      var rDelta = Math.round((Math.random()*2-1)*1.2);
+      var rVal = clamp(myR + rDelta, 1, 5);
+      var rank = RANKS[rVal-1];
+      var rating = clamp(state.me.rating + Math.round((Math.random()*2-1)*300), 300, 3300);
+      var win = clamp(state.me.win + Math.round((Math.random()*2-1)*20), 5, 95);
+      var matches = clamp(state.me.matches + Math.round((Math.random()*2-1)*40), 5, 1500);
+      var names = ['阿明','小羽','阿寬','魚丸','北極星','球霸','飛躍','火羽','左手香','藍鯨','銀狐','夕照','風行','赤狐','木木','皮皮','阿德','恰北北'];
+      arr.push({ id: 'p'+i+Date.now(), name: names[Math.floor(Math.random()*names.length)], rank: rank, rating: rating, win: win, matches: matches, lat: lat, lng: lng });
+    }
+    state.players = arr;
+  }
+
+  // ====== 匹配分數（0~100） ======
+  function matchScore(a,b, distM){
+    var wRank=0.35, wWin=0.2, wRating=0.25, wDist=0.2; // 權重總和=1
+    var rankDiff = Math.abs(RANK_VAL[a.rank]-RANK_VAL[b.rank]);
+    var rankScore = 100*Math.max(0, (3 - rankDiff)/3); // 同階=100，差3階=0
+    var winScore = 100 - Math.min(100, Math.abs(a.win-b.win));
+    var ratingScore = 100 - Math.min(100, Math.abs(a.rating-b.rating)/8); // rating 差 800 -> 0
+    var distScore = 100 - Math.min(100, distM/100); // 0m=100，10km=0
+    return Math.round(rankScore*wRank + winScore*wWin + ratingScore*wRating + distScore*wDist);
+  }
+
+  // ====== 渲染玩家清單 ======
+  function renderPlayers(){
+    var inRange = [];
+    for(var i=0;i<state.players.length;i++){
+      var p = state.players[i];
+      var d = haversine(state.myLoc.lat,state.myLoc.lng,p.lat,p.lng);
+      if(d <= state.range) inRange.push({id:p.id,name:p.name,rank:p.rank,rating:p.rating,win:p.win,matches:p.matches,lat:p.lat,lng:p.lng, dist: d, mscore: matchScore(state.me, p, d)});
+    }
+    inRange.sort(function(a,b){ return (b.mscore - a.mscore) || (a.dist - b.dist); });
+    if(nearCountEl) nearCountEl.textContent = inRange.length;
+    if(listEl) listEl.innerHTML = '';
+    for(var j=0;j<inRange.length;j++){
+      var p2 = inRange[j];
+      var item = document.createElement('div');
+      item.className = 'player';
+      var rankCode = RANK_CODE[p2.rank];
+      item.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px">' +
+        '  <div style="width:36px;height:36px;border-radius:10px;background:#0e1a30;border:1px solid #243353;display:flex;align-items:center;justify-content:center;font-size:18px">🏸</div>' +
+        '  <div>' +
+        '    <div style="font-weight:800">'+p2.name+'</div>' +
+        '    <div class="muted" style="font-size:12px">'+p2.lat.toFixed(4)+', '+p2.lng.toFixed(4)+'</div>' +
+        '  </div>' +
+        '</div>' +
+        '<div><span class="rank '+rankCode+'">'+p2.rank+'</span></div>' +
+        '<div>' +
+        '  <div class="muted" style="font-size:12px">距離</div>' +
+        '  <div><b>'+Math.round(p2.dist)+' m</b></div>' +
+        '</div>' +
+        '<div>' +
+        '  <div class="muted" style="font-size:12px">勝率</div>' +
+        '  <div>'+p2.win+'%</div>' +
+        '</div>' +
+        '<div>' +
+        '  <div class="muted" style="font-size:12px">戰力分</div>' +
+        '  <div>'+p2.rating+'</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">' +
+        '  <div style="min-width:140px">' +
+        '    <div class="scorebar" title="相似度">' +
+        '      <span style="width:'+p2.mscore+'%"></span>' +
+        '    </div>' +
+        '    <div class="muted" style="font-size:12px;text-align:right">相似度 '+p2.mscore+'</div>' +
+        '  </div>' +
+        '  <button class="btn" data-id="'+p2.id+'">開賽</button>' +
+        '</div>';
+      item.querySelector('button').addEventListener('click', (function(p3){ return function(){ startMatchWith(p3); };})(p2));
+      if(listEl) listEl.appendChild(item);
+    }
+  }
+
+  // ====== 定義 render()（修正：避免 ReferenceError） ======
+  function render(){
+    var rl=$('#range-label'); if(rl) rl.textContent = state.range+' m';
+    var fl=$('#fakeN-label'); if(fl) fl.textContent = String(state.fakeN);
+    genFakePlayers();
+    renderPlayers();
+    // 若比賽尚未開始，左側名稱預設為我的暱稱
+    if(state.match && state.match.A && state.match.B && state.match.A.sets===0 && state.match.B.sets===0){
+      var an=$('#A-name'); if(an) an.textContent = state.me.name || '我方';
+    }
+  }
+
+  // ====== 記分板 ======
+  var names = {A: $('#A-name'), B: $('#B-name')};
+  var scores= {A: $('#A-score'),B: $('#B-score')};
+  var sets  = {A: $('#A-sets'), B: $('#B-sets')};
+  var gameNo= $('#game-no');
+  var logEl = $('#log');
+  var meta  = $('#match-meta');
+
+  function stamp(t){
+    var d=new Date(); var hh=('0'+d.getHours()).slice(-2); var mm=('0'+d.getMinutes()).slice(-2);
+    return '['+hh+':'+mm+'] '+t;
+  }
+
+  function recalcLiveTotals(){
+    var A_live = (state.match.totals?state.match.totals.A:0) + (state.match.A?state.match.A.score:0);
+    var B_live = (state.match.totals?state.match.totals.B:0) + (state.match.B?state.match.B.score:0);
+    var aEl = document.getElementById('totalA');
+    var bEl = document.getElementById('totalB');
+    if(aEl) aEl.textContent = A_live;
+    if(bEl) bEl.textContent = B_live;
+  }
+  function avg(arr){ if(!arr.length) return null; var s=0; for(var i=0;i<arr.length;i++){ s+=arr[i]; } return Math.round(s/arr.length); }
+  function recalcCurrentPower(){
+    var a = state.match.A.score, b = state.match.B.score; var t = a + b;
+    var baseA = (state.match.base?state.match.base.A: (state.me?state.me.rating:100));
+    var baseB = (state.match.base?state.match.base.B: 100);
+    
+    // 計算當前戰力
+    var A_now = baseA, B_now = baseB; // 預設為基礎戰力
+    
+    // 只有在當前局有分數時才計算動態戰力
+    if(t > 0){
+      A_now = Math.max(0, Math.round(baseA + (a/t*100 - 50)));
+      B_now = Math.max(0, Math.round(baseB + (b/t*100 - 50)));
+    }
+    
+    // 更新狀態中的戰力
+    state.match.power.A_now = A_now; 
+    state.match.power.B_now = B_now;
+    
+    // 更新顯示
+    var an = document.getElementById('powerA_now');
+    var bn = document.getElementById('powerB_now');
+    var aAvgEl = document.getElementById('powerA_avg');
+    var bAvgEl = document.getElementById('powerB_avg');
+    
+    if(an) an.textContent = A_now;
+    if(bn) bn.textContent = B_now;
+    
+    // 計算已完成局數的平均戰力
+    var done = state.match.gamesPower||[];
+    var aAvg = avg(done.map(function(g){return g[0];}));
+    var bAvg = avg(done.map(function(g){return g[1];}));
+    
+    if(aAvgEl) aAvgEl.textContent = (aAvg==null?'--':aAvg);
+    if(bAvgEl) bAvgEl.textContent = (bAvg==null?'--':bAvg);
+  }
+  function finalizeCurrentGame(addLog){
+    if(addLog===undefined) addLog=true;
+    var a = state.match.A.score, b = state.match.B.score; var t = a + b;
+    if(t===0){ return; }
+    var baseA = (state.match.base?state.match.base.A: (state.me?state.me.rating:100));
+    var baseB = (state.match.base?state.match.base.B: 100);
+    var A_now = Math.max(0, Math.round(baseA + (a/t*100 - 50)));
+    var B_now = Math.max(0, Math.round(baseB + (b/t*100 - 50)));
+    state.match.totals.A += a;
+    state.match.totals.B += b;
+    state.match.gamesPower = (state.match.gamesPower||[]).concat([[A_now,B_now]]);
+    if(addLog) state.match.log.push(stamp('戰力（第 '+state.match.game+' 局）：'+state.match.A.name+' '+A_now+' / '+state.match.B.name+' '+B_now));
+  }
+
+  function updateUserRatingOnWin(){
+    var gps = state.match.gamesPower||[];
+    if(!gps.length) return;
+    var sum=0; for(var i=0;i<gps.length;i++){ sum += gps[i][0]; }
+    var avg = Math.round(sum/gps.length); if(avg<0) avg=0;
+    state.me.rating = avg;
+    try{ localStorage.setItem('bm_profile', JSON.stringify(state.me)); }catch(e){}
+    var rt=document.getElementById('me-rating'); if(rt) rt.value=String(avg);
+    if(state.match && state.match.base) state.match.base.A = avg;
+    state.match.log.push(stamp('⭐ 已更新我的註冊戰力為 '+avg));
+  }
+
+  function updateBoard(){
+    if(names.A) names.A.textContent = state.match.A.name; if(names.B) names.B.textContent = state.match.B.name;
+    if(scores.A) scores.A.textContent = state.match.A.score; if(scores.B) scores.B.textContent = state.match.B.score;
+    if(sets.A) sets.A.textContent = state.match.A.sets; if(sets.B) sets.B.textContent = state.match.B.sets;
+    if(gameNo) gameNo.textContent = state.match.game;
+    if(meta) meta.textContent = state.match.over ? '比賽已結束' : ('進行中｜第 '+state.match.game+' 局');
+    if(logEl) logEl.innerHTML = state.match.log.slice().reverse().map(function(l){return '<div>'+l+'</div>';}).join('');
+    recalcCurrentPower();
+    recalcLiveTotals();
+    try{ localStorage.setItem('bm_last_match', JSON.stringify(state.match)); }catch(e){}
+  }
+
+  function resetWholeMatch(){
+    state.match = {
+      A:{name: state.me.name||'我方', sets:0, score:0},
+      B:{name:'對手', sets:0, score:0},
+      game:1, over:false, log:[],
+      totals:{A:0,B:0},
+      base:{A: state.me.rating, B: 100},
+      power:{A_now:0,B_now:0},
+      gamesPower:[]
+    };
+    updateBoard();
+  }
+
+  function startMatchWith(opp){
+    state.match = {
+      A: {name: state.me.name || '我方', sets: 0, score: 0},
+      B: {name: opp.name, sets: 0, score: 0},
+      game: 1, over: false,
+      log: [stamp('開賽：'+(state.me.name||'我方')+' vs '+opp.name)],
+      totals:{A:0,B:0},
+      base:{A: state.me.rating, B: opp.rating},
+      power:{A_now:0,B_now:0},
+      gamesPower:[]
+    };
+    updateBoard();
+    try{ window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'}); }catch(e){}
+  }
+
+  function addPoint(side, val){
+    if(state.match.over) return;
+    state.match[side].score = Math.max(0, state.match[side].score + val);
+    state.match.log.push(stamp(state.match[side].name+' '+(val>0?'+1':'-1')+' → '+state.match.A.score+':'+state.match.B.score));
+    recalcCurrentPower();
+    recalcLiveTotals();
+    maybeEndGame();
+    updateBoard();
+  }
+
+  function maybeEndGame(){
+    var a=state.match.A.score, b=state.match.B.score;
+    function isWin(x,y){ return (x>=21 && x-y>=2) || (x===30 && y===29); }
+    var winner=null;
+    if(isWin(a,b)) winner='A'; else if(isWin(b,a)) winner='B';
+    if(!winner) return;
+    state.match[winner].sets += 1;
+    state.match.log.push(stamp('第 '+state.match.game+' 局結束：'+state.match.A.name+' '+a+' - '+b+' '+state.match.B.name));
+    state.match.scoreline = (state.match.scoreline||[]).concat([[a,b]]);
+    finalizeCurrentGame(true);
+    if(state.match.A.sets===2 || state.match.B.sets===2){
+      state.match.over = true;
+      var champ = state.match.A.sets===2 ? state.match.A.name : state.match.B.name;
+      state.match.log.push(stamp('比賽結束，'+champ+' 以 '+state.match.A.sets+':'+state.match.B.sets+' 勝出'));
+      if(state.match.A.sets===2){ updateUserRatingOnWin(); }
+    } else {
+      state.match.game += 1;
+      state.match.A.score = 0; state.match.B.score = 0;
+      // 重置戰力為基礎戰力，但保持當前戰力計算
+      state.match.power.A_now = state.match.base.A; 
+      state.match.power.B_now = state.match.base.B;
+    }
+    // 確保戰力計算正確
+    recalcCurrentPower();
+    recalcLiveTotals();
+  }
+
+  // 控制按鈕（事件委派避免節點變更失效）
+  var scoreboard = document.querySelector('.scoreboard');
+  if (scoreboard) {
+    scoreboard.addEventListener('click', function(e){
+      var id = e.target && e.target.id;
+      if (id==='A-plus') addPoint('A', +1);
+      else if (id==='A-minus') addPoint('A', -1);
+      else if (id==='B-plus') addPoint('B', +1);
+      else if (id==='B-minus') addPoint('B', -1);
+    });
+  }
+  var ng=$('#next-game'), eg=$('#end-game'), rs=$('#reset-match');
+  if(ng) ng.addEventListener('click', function(){ 
+    if(state.match.over) return; 
+    state.match.log.push(stamp('手動進入下一局')); 
+    finalizeCurrentGame(true); 
+    state.match.game += 1; 
+    state.match.A.score=0; 
+    state.match.B.score=0; 
+    // 重置戰力為基礎戰力
+    state.match.power.A_now=state.match.base.A; 
+    state.match.power.B_now=state.match.base.B; 
+    updateBoard(); 
+  });
+  if(eg) eg.addEventListener('click', function(){
+    if(state.match.over) return;
+    finalizeCurrentGame(true);
+    state.match.over = true;
+    // 若我方已經兩勝且領先，立即更新註冊戰力
+    if(state.match.A.sets>=2 && state.match.A.sets>state.match.B.sets){ updateUserRatingOnWin(); }
+    state.match.log.push(stamp('結束比賽(手動)'));
+    updateBoard();
+  });
+  if(rs) rs.addEventListener('click', function(){ resetWholeMatch(); state.match.log.push(stamp('重置整場比賽')); updateBoard(); });
+
+  // ====== 聊天室 ======
+  state.chat = { messages: [] };
+  function loadChat(){
+    try{ var raw = localStorage.getItem('bm_chat'); if(raw){ state.chat.messages = JSON.parse(raw)||[]; } }catch(e){}
+  }
+  function saveChat(){ try{ localStorage.setItem('bm_chat', JSON.stringify(state.chat.messages)); }catch(e){} }
+  function renderChat(){
+    var box = document.getElementById('chat-log'); if(!box) return;
+    var html = '';
+    for(var i=state.chat.messages.length-1;i>=0;i--){
+      var m = state.chat.messages[i];
+      html += '<div><span class="pill">'+m.when+'</span> <b>'+(m.sender==='A'?(state.match.A.name||'我方'):(state.match.B.name||'對手'))+'</b>：'+m.text+'</div>';
+    }
+    box.innerHTML = html;
+  }
+  function nowHM(){ var d=new Date(); var hh=('0'+d.getHours()).slice(-2); var mm=('0'+d.getMinutes()).slice(-2); return hh+':'+mm; }
+  function addChat(sender, text){
+    text = (text||'').trim(); if(!text) return;
+    state.chat.messages.push({sender:sender, text:text, when: nowHM()});
+    saveChat(); renderChat();
+  }
+
+  // 聊天事件
+  var chatSend = document.getElementById('chat-send');
+  var chatClear= document.getElementById('chat-clear');
+  if(chatSend) chatSend.addEventListener('click', function(){
+    var s = document.getElementById('chat-sender');
+    var i = document.getElementById('chat-input');
+    addChat((s&&s.value)||'A', (i&&i.value)||'');
+    if(i) i.value='';
+  });
+  if(chatClear) chatClear.addEventListener('click', function(){ state.chat.messages=[]; saveChat(); renderChat(); });
+  var chatInput = document.getElementById('chat-input');
+  if(chatInput) chatInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ chatSend.click(); }});
+
+  // 開賽時自動投遞系統訊息
+  var _startMatchWith = startMatchWith;
+  startMatchWith = function(opp){ _startMatchWith(opp); addChat('A', '比賽開始！'); };
+
+  // ====== 地圖 ======
+  function mapUrl(lat,lng,z,key){
+    var q = encodeURIComponent(key);
+    return 'https://www.google.com/maps?output=embed&z='+z+'&q='+q+'&ll='+lat+','+lng;
+  }
+  function mapOpenUrl(lat,lng,z,key){
+    var q = encodeURIComponent(key);
+    return 'https://www.google.com/maps/search/'+q+'/@'+lat+','+lng+','+z+'z';
+  }
+  var mapDisabled = false, lastMapSig = '', mapUpdateTimer = null;
+  var net = {allowed:false, prompted:false};
+  function updateMap(){
+    var zEl = $('#map-z'); var keyEl=$('#map-key'); var mapEl=$('#map'); var openA=$('#open-gmaps');
+    var z = clamp(zEl?zEl.value:14, 10, 18); var key = keyEl?keyEl.value:'羽球館';
+    var lat=state.myLoc.lat, lng=state.myLoc.lng;
+    var sig = lat.toFixed(5)+','+lng.toFixed(5)+'|'+z+'|'+key;
+    if(openA) openA.href = mapOpenUrl(lat,lng,z,key);
+    if(mapDisabled || (typeof net!=='undefined' && !net.allowed)){
+      if(mapEl) mapEl.src='';
+      var ns=$('#net-state'); if(ns) ns.textContent = '外網：' + ((typeof net!=='undefined' && net.allowed)? '已允許' : '未允許（已阻擋自動載入）');
+      lastMapSig = sig; // 記錄避免後續無限嘗試
+      return;
+    }
+    if(sig === lastMapSig) return; // 避免重複載入造成彈窗
+    lastMapSig = sig;
+    if(mapEl) mapEl.src = mapUrl(lat,lng,z,key);
+  }
+
+  // ====== 事件綁定 ======
+  var sp=$('#save-profile'); if(sp) sp.addEventListener('click', saveProfile);
+  var lb=$('#locate-btn'); if(lb) lb.addEventListener('click', locate);
+  
+  // Profile 按鈕事件
+  var profileBtn = document.getElementById('profile-btn');
+  if(profileBtn) {
+    profileBtn.addEventListener('click', function() {
+      // 檢查登入狀態
+      var isLoggedIn = localStorage.getItem('isLoggedIn');
+      var currentUser = localStorage.getItem('currentUser');
+      
+      if(isLoggedIn === 'true' && currentUser) {
+        // 已登入，顯示Profile彈出視窗
+        showProfileModal();
+      } else {
+        // 未登入，跳轉到登入頁面
+        if(confirm('您尚未登入，是否要前往登入頁面？')) {
+          window.location.href = 'badminton_login.html';
+        }
+      }
+    });
+  }
+  
+  // Profile 彈出視窗功能
+  function showProfileModal() {
+    var modal = document.getElementById('profile-modal');
+    var currentUser = localStorage.getItem('currentUser');
+    
+    // 載入個人資料
+    loadProfileToModal();
+    
+    // 自動填入用戶名稱
+    var nameField = document.getElementById('profile-name');
+    if(nameField && currentUser) {
+      nameField.value = currentUser;
+    }
+    
+    // 顯示彈出視窗
+    modal.style.display = 'block';
+  }
+  
+  function hideProfileModal() {
+    var modal = document.getElementById('profile-modal');
+    modal.style.display = 'none';
+  }
+  
+  function loadProfileToModal() {
+    // 從localStorage載入個人資料到彈出視窗
+    try {
+      var profile = JSON.parse(localStorage.getItem('bm_profile') || '{}');
+      
+      var nameField = document.getElementById('profile-name');
+      var rankField = document.getElementById('profile-rank');
+      var ratingField = document.getElementById('profile-rating');
+      var winField = document.getElementById('profile-win');
+      var matchesField = document.getElementById('profile-matches');
+      
+      if(nameField && profile.name) nameField.value = profile.name;
+      if(rankField && profile.rank) rankField.value = profile.rank;
+      if(ratingField && profile.rating) ratingField.value = profile.rating;
+      if(winField && profile.win) winField.value = profile.win;
+      if(matchesField && profile.matches) matchesField.value = profile.matches;
+    } catch(e) {
+      console.log('載入個人資料失敗:', e);
+    }
+  }
+  
+  // 綁定Profile彈出視窗事件
+  var profileClose = document.getElementById('profile-close');
+  if(profileClose) {
+    profileClose.addEventListener('click', hideProfileModal);
+  }
+  
+  var profileSave = document.getElementById('profile-save');
+  if(profileSave) {
+    profileSave.addEventListener('click', function() {
+      // 儲存個人資料
+      var profile = {
+        name: document.getElementById('profile-name').value,
+        rank: document.getElementById('profile-rank').value,
+        rating: Number(document.getElementById('profile-rating').value),
+        win: Number(document.getElementById('profile-win').value),
+        matches: Number(document.getElementById('profile-matches').value)
+      };
+      
+      try {
+        localStorage.setItem('bm_profile', JSON.stringify(profile));
+        alert('個人資料已儲存！');
+        hideProfileModal();
+      } catch(e) {
+        alert('儲存失敗：' + e.message);
+      }
+    });
+  }
+  
+  // 點擊彈出視窗外部關閉
+  var profileModal = document.getElementById('profile-modal');
+  if(profileModal) {
+    profileModal.addEventListener('click', function(e) {
+      if(e.target === profileModal) {
+        hideProfileModal();
+      }
+    });
+  }
+  var rangeEl=$('#range'); if(rangeEl) rangeEl.addEventListener('input', function(e){ state.range = Number(e.target.value||state.range); renderPlayers(); var rl=$('#range-label'); if(rl) rl.textContent = state.range+' m'; });
+  var fakeEl=$('#fakeN'); if(fakeEl) fakeEl.addEventListener('input', function(e){ state.fakeN = Number(e.target.value||state.fakeN); var fl=$('#fakeN-label'); if(fl) fl.textContent = String(state.fakeN); genFakePlayers(); renderPlayers(); });
+  var mk=$('#map-key'); if(mk) mk.addEventListener('change', updateMap);
+  var mz=$('#map-z'); if(mz) mz.addEventListener('input', updateMap);
+  var rm=$('#refresh-map'); if(rm) rm.addEventListener('click', updateMap);
+  var dm=$('#disable-map'); if(dm) dm.addEventListener('change', function(e){
+    mapDisabled = !!e.target.checked;
+    try{ localStorage.setItem('bm_disable_map', mapDisabled?'1':'0'); }catch(err){}
+    var wrap=document.querySelector('.mapwrap'); if(wrap) wrap.style.display = mapDisabled?'none':'';
+    updateMap();
+  });
+  var nc=$('#net-check'); if(nc) nc.addEventListener('click', function(){
+    if(net.allowed) return; // 已允許就不重複觸發
+    net.prompted = true;
+    var ns=$('#net-state'); if(ns) ns.textContent='外網：檢查中…';
+    try{
+      fetch('https://www.google.com/generate_204', {mode:'no-cors'})
+        .then(function(){ net.allowed=true; try{localStorage.setItem('bm_net_ok','1');}catch(e){} if(ns) ns.textContent='外網：已允許'; updateMap(); })
+        .catch(function(){ net.allowed=true; try{localStorage.setItem('bm_net_ok','1');}catch(e){} if(ns) ns.textContent='外網：已允許'; updateMap(); });
+    }catch(err){ net.allowed=true; try{localStorage.setItem('bm_net_ok','1');}catch(e){} if(ns) ns.textContent='外網：已允許'; updateMap(); }
+  });
+
+  // 測試按鈕
+  var runBtn = document.getElementById('run-tests');
+  if(runBtn){
+    runBtn.addEventListener('click', function(){
+      var out = document.getElementById('test-results');
+      function log(line){ out.innerHTML = '<div>'+line+'</div>' + out.innerHTML; }
+      function ok(name){ log('✅ '+name); }
+      function ng(name,msg){ log('❌ '+name+' — '+msg); }
+      try{
+        // Test 1: render 存在
+        if(typeof render === 'function') ok('render() 存在'); else ng('render() 存在','找不到 render');
+        // Test 2: render 可呼叫
+        try { render(); ok('render() 可執行'); } catch(e){ ng('render() 可執行', String(e)); }
+        // Test 3: addPoint 可加分且不拋錯（測試後還原狀態）
+        var snap = JSON.parse(JSON.stringify(state.match));
+        try {
+          var old = state.match.A.score; addPoint('A', +1);
+          if(state.match.A.score === old+1) ok('addPoint() +1 正常'); else ng('addPoint() +1','分數未增加');
+        } catch(e){ ng('addPoint() +1', String(e)); }
+        // 還原
+        state.match = snap; updateBoard(); ok('還原比賽狀態');
+        // Test 4: updateMap() 不拋錯
+        try { updateMap(); ok('updateMap() 可執行'); } catch(e){ ng('updateMap() 可執行', String(e)); }
+        // Test 5: updateUserRatingOnWin 在勝場後會更新面板戰力
+        if (typeof updateUserRatingOnWin === 'function') {
+          var oldRating = state.me.rating;
+          var snap2 = JSON.parse(JSON.stringify(state.match));
+          state.match.gamesPower = [[1200,1100],[1300,1000]]; // A 的兩局戰力
+          try { updateUserRatingOnWin();
+            var expected = Math.round((1200+1300)/2);
+            if (state.me.rating === expected) ok('updateUserRatingOnWin() 更新面板戰力');
+            else ng('updateUserRatingOnWin() 更新面板戰力', '預期 '+expected+' 實得 '+state.me.rating);
+          } catch(e){ ng('updateUserRatingOnWin() 執行', String(e)); }
+          // 還原
+          state.me.rating = oldRating; state.match = snap2; updateBoard(); ok('還原面板戰力與比賽狀態');
+        } else {
+          ng('updateUserRatingOnWin() 存在', '找不到函式');
+        }
+      }catch(e){ log('測試程序錯誤：'+String(e)); }
+    });
+  }
+
+  // ====== 啟動 ======
+  loadProfile();
+  try{ mapDisabled = localStorage.getItem('bm_disable_map')==='1'; }catch(e){}
+  var dmInit=document.getElementById('disable-map'); if(dmInit){ dmInit.checked = mapDisabled; }
+  if(mapDisabled){ var wrap=document.querySelector('.mapwrap'); if(wrap) wrap.style.display='none'; }
+  try{ net.allowed = localStorage.getItem('bm_net_ok')==='1'; }catch(e){}
+  var nsInit=document.getElementById('net-state'); if(nsInit){ nsInit.textContent = '外網：' + (net.allowed?'已允許':'未允許'); }
+  resetWholeMatch();
+  locate();
+  // 權限變更為「允許」時，不需重整即刻定位
+  try{ if(navigator.permissions && navigator.permissions.query){ navigator.permissions.query({name:'geolocation'}).then(function(p){ try{ p.onchange = function(){ if(p.state==='granted'){ locate(); } }; }catch(e){} }); } }catch(e){}
+  // 如果 1.2 秒後尚未定位完成，先用預設座標畫地圖
+  setTimeout(function(){ var mapEl=$('#map'); if(mapEl && !mapEl.src){ updateMap(); } }, 1200);
+
+  // 若曾有未結束比賽記錄，還原
+  try{ var prev = JSON.parse(localStorage.getItem('bm_last_match')||'null'); if(prev){ state.match=prev; if(!state.match.totals) state.match.totals={A:0,B:0}; if(!state.match.base) state.match.base={A: state.me.rating, B: 100}; if(!state.match.power) state.match.power={A_now:0,B_now:0}; if(!state.match.gamesPower) state.match.gamesPower=[]; updateBoard(); } }catch(e){}
+
+})();
+  </script>
+</body>
+</html>
