@@ -1,4 +1,4 @@
-/* 註冊 UI + DB */
+/* 註冊 UI + 官方信箱驗證 */
 package com.example.amicitia.ui.register
 
 import androidx.compose.animation.AnimatedVisibility
@@ -18,18 +18,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.amicitia.ui.login.PrimaryBlue
-import kotlinx.coroutines.launch
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 private val PrimeColor = Color(0xFF3F51B5)
+private val PrimaryBlue = Color(0xFF1E88E5)
 
 @Composable
 fun RegisterScreen(navController: NavController) {
-    // 狀態
     var email by remember { mutableStateOf("") }
     var nickname by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -44,12 +43,11 @@ fun RegisterScreen(navController: NavController) {
     var fieldErrorConfirm by remember { mutableStateOf<String?>(null) }
     var fieldErrorNickname by remember { mutableStateOf<String?>(null) }
 
-    var isLoading by remember { mutableStateOf(false) } // <--- 補上這個
+    var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val auth = Firebase.auth
 
-    // 驗證函式
     fun submitUiOnly(): Boolean {
         fieldErrorEmail = null
         fieldErrorPassword = null
@@ -57,32 +55,17 @@ fun RegisterScreen(navController: NavController) {
         fieldErrorNickname = null
 
         var ok = true
-        if (email.isBlank()) {
-            fieldErrorEmail = "請輸入電子郵件"; ok = false
-        } else if (!Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)) {
+        if (email.isBlank()) { fieldErrorEmail = "請輸入電子郵件"; ok = false }
+        else if (!Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)) {
             fieldErrorEmail = "電子郵件格式錯誤"; ok = false
         }
-
-        if (nickname.isBlank()) {
-            fieldErrorNickname = "請輸入暱稱"; ok = false
-        }
-
-        if (password.isBlank()) {
-            fieldErrorPassword = "請輸入密碼"; ok = false
-        }
-
-        if (passwordConfirmation != password) {
-            fieldErrorConfirm = "兩次輸入的密碼不一致"; ok = false
-        }
-
-        if (!agreeTos) {
-            ok = false
-        }
-
+        if (nickname.isBlank()) { fieldErrorNickname = "請輸入暱稱"; ok = false }
+        if (password.isBlank()) { fieldErrorPassword = "請輸入密碼"; ok = false }
+        if (passwordConfirmation != password) { fieldErrorConfirm = "兩次輸入的密碼不一致"; ok = false }
+        if (!agreeTos) ok = false
         return ok
     }
 
-    // Firebase 註冊函式
     suspend fun registerToFirebase(email: String, password: String, nickname: String) {
         try {
             isLoading = true
@@ -94,7 +77,10 @@ fun RegisterScreen(navController: NavController) {
                 .build()
             user.updateProfile(profile).await()
 
-            snackbarHostState.showSnackbar("註冊成功，歡迎 $nickname！")
+            user.sendEmailVerification().await()
+
+            snackbarHostState.showSnackbar("註冊成功！驗證信已寄到 $email，請點信中的連結完成驗證。(可能會在垃圾郵件裡面,是noreply)")
+
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
                 launchSingleTop = true
@@ -126,11 +112,9 @@ fun RegisterScreen(navController: NavController) {
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 標題
                 Text("歡迎註冊", style = MaterialTheme.typography.headlineSmall, color = Color.Black)
                 Text("請依下面指示註冊", style = MaterialTheme.typography.bodyMedium, color = Color.Black)
 
-                // Email
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; fieldErrorEmail = null },
@@ -144,7 +128,6 @@ fun RegisterScreen(navController: NavController) {
                     Text(fieldErrorEmail ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
-                // 暱稱
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it; fieldErrorNickname = null },
@@ -158,7 +141,6 @@ fun RegisterScreen(navController: NavController) {
                     Text(fieldErrorNickname ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
-                // 密碼
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; fieldErrorPassword = null },
@@ -179,7 +161,6 @@ fun RegisterScreen(navController: NavController) {
                     Text(fieldErrorPassword ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
-                // 確認密碼
                 OutlinedTextField(
                     value = passwordConfirmation,
                     onValueChange = { passwordConfirmation = it; fieldErrorConfirm = null },
@@ -200,7 +181,6 @@ fun RegisterScreen(navController: NavController) {
                     Text(fieldErrorConfirm ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
-                // 條款
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -220,7 +200,6 @@ fun RegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 註冊按鈕
                 Button(
                     onClick = {
                         if (submitUiOnly()) {
@@ -243,7 +222,6 @@ fun RegisterScreen(navController: NavController) {
                     }
                 }
 
-                // 返回按鈕
                 OutlinedButton(
                     onClick = { navController.popBackStack() },
                     modifier = Modifier
@@ -260,7 +238,6 @@ fun RegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Footer
                 Text(
                     text = "Power By ZiyanGZiyaNG",
                     style = MaterialTheme.typography.bodySmall,
