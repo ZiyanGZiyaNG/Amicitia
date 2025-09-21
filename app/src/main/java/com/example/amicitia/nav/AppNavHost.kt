@@ -7,8 +7,6 @@ import androidx.navigation.compose.composable
 import com.example.amicitia.ui.home.HomeScreen
 import com.example.amicitia.ui.login.LoginScreen
 import com.example.amicitia.ui.register.RegisterScreen
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 
 object Routes {
     const val LOGIN = "login"
@@ -17,15 +15,16 @@ object Routes {
 }
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(
+    navController: NavHostController,
+    startDestination: String = Routes.LOGIN // 預設 login，但可以從 MainActivity 傳 HOME
+) {
     NavHost(
         navController = navController,
-        startDestination = Routes.LOGIN
+        startDestination = startDestination
     ) {
         composable(Routes.LOGIN) { LoginScreen(navController) }
         composable(Routes.REGISTER) { RegisterScreen(navController) }
-        composable(Routes.HOME) {
-            HomeScreen(navController)
-        }
+        composable(Routes.HOME) { HomeScreen(navController) }
     }
 }
