@@ -4,27 +4,27 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.amicitia.ui.home.HomeScreen
 import com.example.amicitia.ui.login.LoginScreen
 import com.example.amicitia.ui.register.RegisterScreen
+import com.example.amicitia.ui.menu.MenuScreen
 
 object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
-    const val HOME = "home"
+    const val MENU = "menu"
 }
 
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    startDestination: String = Routes.LOGIN // 預設 login，但可以從 MainActivity 傳 HOME
+    startDestination: String
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(Routes.LOGIN) { LoginScreen(navController) }
+        composable(Routes.LOGIN)    { LoginScreen(navController) }
         composable(Routes.REGISTER) { RegisterScreen(navController) }
-        composable(Routes.HOME) { HomeScreen(navController) }
+        composable(Routes.MENU)     { MenuScreen(navController) }
     }
 }

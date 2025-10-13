@@ -1,4 +1,4 @@
-plugins {
+    plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
@@ -64,6 +64,8 @@ dependencies {
 
     // 讓 Task 支援 .await()
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
 }

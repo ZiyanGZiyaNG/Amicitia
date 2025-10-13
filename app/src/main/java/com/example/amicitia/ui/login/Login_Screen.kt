@@ -1,7 +1,11 @@
-/* 登入 UI + 有DB */
+/* 登入 UI + 有動畫 + 防止 .com 換行 */
 package com.example.amicitia.ui.login
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -9,6 +13,8 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -16,24 +22,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.amicitia.R
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.example.amicitia.nav.Routes
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// 主色系
 val PrimaryBlue = Color(0xFF3F51B5)
 
-// LOGO
 @Composable
 fun LoginLogo(modifier: Modifier = Modifier) {
     Image(
@@ -43,53 +49,21 @@ fun LoginLogo(modifier: Modifier = Modifier) {
     )
 }
 
-// 主程式
 @Composable
 fun LoginScreen(navController: NavController) {
-    // 變數
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var rememberMe by remember { mutableStateOf(true) }
     var loading by remember { mutableStateOf(false) }
     var fieldErrorEmail by remember { mutableStateOf<String?>(null) }
     var fieldErrorPassword by remember { mutableStateOf<String?>(null) }
     var formMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // 表單前端驗證
-    fun submitUiOnly(): Boolean {
-        formMessage = null
-        fieldErrorEmail = null
-        fieldErrorPassword = null
-        var ok = true
+    val pwFocus = remember { FocusRequester() }
 
-        if (email.isBlank()) {
-            fieldErrorEmail = "請輸入電子郵件"; ok = false
-        } else if (!Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)) {
-            fieldErrorEmail = "電子郵件格式錯誤"; ok = false
-        }
-
-        if (password.isBlank()) {
-            fieldErrorPassword = "請輸入密碼"; ok = false
-        }
-
-        if (!ok) return false
-
-        // 可保留一點點 loading 動畫，純視覺效果
-        loading = true
-        scope.launch {
-            delay(300)
-            loading = false
-            formMessage = null
-        }
-        return true
-    }
-
-    // Firebase Auth
     val auth = Firebase.auth
 
-    // 真正登入
     suspend fun login() {
         try {
             loading = true
@@ -97,12 +71,13 @@ fun LoginScreen(navController: NavController) {
             val result = auth.signInWithEmailAndPassword(email.trim(), password).await()
             val user = result.user ?: error("找不到使用者")
             formMessage = "登入成功，歡迎 ${user.displayName ?: user.email}"
-            navController.navigate("home") {
-                popUpTo("login") { inclusive = true }
+            delay(800)
+            navController.navigate(Routes.MENU) {
+                popUpTo(Routes.LOGIN) { inclusive = true }
                 launchSingleTop = true
             }
         } catch (e: Exception) {
-            formMessage = e.message ?: "登入失敗，稍後再試"
+            formMessage = e.message ?: "登入失敗，請稍後再試"
         } finally {
             loading = false
         }
@@ -115,7 +90,9 @@ fun LoginScreen(navController: NavController) {
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .imePadding()
+                .navigationBarsPadding()
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -125,94 +102,94 @@ fun LoginScreen(navController: NavController) {
             Text("歡迎回來", style = MaterialTheme.typography.headlineSmall, color = Color.Black)
             Text("請登入以繼續", color = Color.Black, style = MaterialTheme.typography.bodyMedium)
 
+            // Email 欄
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; fieldErrorEmail = null },
+                onValueChange = {
+                    val sanitized = it.replace("\n", "").replace(" ", "")
+                    email = sanitized
+                    fieldErrorEmail = null
+                },
                 label = { Text("電子郵件") },
                 singleLine = true,
+                maxLines = 1,
                 isError = fieldErrorEmail != null,
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            AnimatedVisibility(visible = fieldErrorEmail != null) {
-                Text(fieldErrorEmail ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it; fieldErrorPassword = null },
-                label = { Text("密碼") },
-                singleLine = true,
-                isError = fieldErrorPassword != null,
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    val icon = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    val desc = if (showPassword) "隱藏密碼" else "顯示密碼"
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(icon, contentDescription = desc)
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            AnimatedVisibility(visible = fieldErrorPassword != null) {
-                Text(fieldErrorPassword ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-
-            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrect = false,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { pwFocus.requestFocus() }
+                )
+            )
+
+            AnimatedVisibility(visible = fieldErrorEmail != null) {
+                Text(
+                    fieldErrorEmail ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            // 密碼欄動畫出現
+            AnimatedVisibility(
+                visible = email.contains("@") && email.contains("."),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = rememberMe,
-                        onCheckedChange = { rememberMe = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = PrimaryBlue,
-                            checkmarkColor = Color.White,
-                            uncheckedColor = Color.Gray
+                Column {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it; fieldErrorPassword = null },
+                        label = { Text("密碼") },
+                        singleLine = true,
+                        maxLines = 1,
+                        isError = fieldErrorPassword != null,
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            val icon = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(icon, contentDescription = if (showPassword) "隱藏密碼" else "顯示密碼")
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(pwFocus),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = { if (!loading) scope.launch { login() } }
                         )
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text("記住我", color = Color.Black)
-                }
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                Firebase.auth.sendPasswordResetEmail(email.trim()).await()
-                                formMessage = "已寄出重設密碼信到 $email"
-                            } catch (e: Exception) {
-                                formMessage = e.message ?: "寄送失敗，請確認 Email 是否正確"
-                            }
-                        }
-                    },
-                    enabled = email.isNotBlank()
-                ) {
-                    Text("忘記密碼？", color = PrimaryBlue, textDecoration = TextDecoration.Underline)
+
+                    AnimatedVisibility(visible = fieldErrorPassword != null) {
+                        Text(
+                            fieldErrorPassword ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
 
-            val loginInteraction = remember { MutableInteractionSource() }
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 登入按鈕
             Button(
-                onClick = {
-                    if (submitUiOnly()) { scope.launch { login() } }
-                },
-                enabled = !loading,
+                onClick = { scope.launch { login() } },
+                enabled = !loading && email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .indication(loginInteraction, null),
+                    .height(48.dp),
                 shape = RoundedCornerShape(24.dp),
-                interactionSource = loginInteraction,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PrimaryBlue,
-                    contentColor = Color.White,
-                    disabledContainerColor = PrimaryBlue,
-                    disabledContentColor = Color.White
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp)
+                    contentColor = Color.White
+                )
             ) {
                 if (loading) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -223,39 +200,41 @@ fun LoginScreen(navController: NavController) {
                 }
             }
 
-            val registerInteraction = remember { MutableInteractionSource() }
+            // 註冊按鈕
             OutlinedButton(
-                onClick = { navController.navigate("register") }, // 修正為小寫路由
+                onClick = { navController.navigate(Routes.REGISTER) },
                 enabled = !loading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .indication(registerInteraction, null),
+                    .height(48.dp),
                 shape = RoundedCornerShape(24.dp),
-                interactionSource = registerInteraction,
                 border = BorderStroke(1.dp, PrimaryBlue),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.White,
-                    contentColor = PrimaryBlue,
-                    disabledContentColor = PrimaryBlue
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp)
+                    contentColor = PrimaryBlue
+                )
             ) {
                 Text("註冊")
             }
 
-            Text(
-                text = "Power By ZiyanGZiyaNG",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Black,
-                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-            )
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        try {
+                            Firebase.auth.sendPasswordResetEmail(email.trim()).await()
+                            formMessage = "已寄出重設密碼信到 $email"
+                        } catch (e: Exception) {
+                            formMessage = e.message ?: "寄送失敗，請確認 Email 是否正確"
+                        }
+                    }
+                },
+                enabled = email.isNotBlank()
+            ) {
+                Text("忘記密碼？", color = PrimaryBlue, textDecoration = TextDecoration.Underline)
+            }
 
             AnimatedVisibility(visible = formMessage != null) {
-                Column {
-                    Spacer(Modifier.height(8.dp))
-                    Text(formMessage!!, color = MaterialTheme.colorScheme.primary)
-                }
+                Text(formMessage!!, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
