@@ -4,9 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+
 import com.example.amicitia.ui.login.LoginScreen
 import com.example.amicitia.ui.register.RegisterScreen
-import com.example.amicitia.ui.menu.MenuScreen
+import com.example.amicitia.ui.menu.MenuScreen   // ← 這行很關鍵
 
 object Routes {
     const val LOGIN = "login"
@@ -15,16 +16,10 @@ object Routes {
 }
 
 @Composable
-fun AppNavHost(
-    navController: NavHostController,
-    startDestination: String
-) {
-    NavHost(
-        navController = navController,
-        startDestination = startDestination
-    ) {
+fun AppNavHost(navController: NavHostController, startDestination: String) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.LOGIN)    { LoginScreen(navController) }
         composable(Routes.REGISTER) { RegisterScreen(navController) }
-        composable(Routes.MENU)     { MenuScreen(navController) }
+        composable(Routes.MENU)     { MenuScreen(navController) } // ← 要能找到這個
     }
 }
