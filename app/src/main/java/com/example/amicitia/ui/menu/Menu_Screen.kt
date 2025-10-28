@@ -6,7 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height // <- 新增這個
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,9 +41,11 @@ import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import com.example.amicitia.presence.PresenceManager
+import com.example.amicitia.nav.Routes
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.ktx.firestore
 
 // --- Routes used only inside the menu ---
 private object MenuTabs {
@@ -54,7 +57,36 @@ private object MenuTabs {
 
 @Composable
 fun MenuScreen(outerNavController: NavController) {
+    // 這是底部四個 tab 用的 NavController
     val innerNav: NavHostController = rememberNavController()
+
+    // Firebase & presence 狀態，提供給 Profile -> 登出
+    val auth = Firebase.auth
+    val db = com.google.firebase.ktx.Firebase.firestore
+    val uid = auth.currentUser?.uid
+
+    // PresenceManager 只記得目前 uid 這個人
+    // 用 remember(uid) 的概念：這裡用 remember() 等價，因為這個 Composable 只會在 MenuScreen 還存在時重組
+    val presenceManager = remember(uid) {
+        if (uid != null) PresenceManager(uid, db) else null
+    }
+
+    // 這個 lambda 會被傳到 ProfileRoute
+    val handleLogout: () -> Unit = {
+        // 1. Firestore 上標記 offline
+        uid?.let {
+            presenceManager?.stop()
+        }
+
+        // 2. Firebase signOut()
+        auth.signOut()
+
+        // 3. 導回最外層 Nav 的 LOGIN
+        outerNavController.navigate(Routes.LOGIN) {
+            // 清掉 MENU 這個 destination，避免回上一頁又回到登入後畫面
+            popUpTo(Routes.MENU) { inclusive = true }
+        }
+    }
 
     Scaffold(
         bottomBar = { BottomBar(innerNav) }
@@ -62,7 +94,8 @@ fun MenuScreen(outerNavController: NavController) {
         MenuNavHost(
             navController = innerNav,
             outerNavController = outerNavController,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            onLogout = handleLogout
         )
     }
 }
@@ -71,7 +104,8 @@ fun MenuScreen(outerNavController: NavController) {
 private fun MenuNavHost(
     navController: NavHostController,
     outerNavController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogout: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -81,6 +115,7 @@ private fun MenuNavHost(
         composable(MenuTabs.HOME) {
             HomeRoute(
                 onSportSelected = { sportKey ->
+                    // 如果你之後有外層的單一運動頁，就可以用 outerNavController 去那頁
                     outerNavController.navigate("sport/$sportKey")
                 }
             )
@@ -92,7 +127,10 @@ private fun MenuNavHost(
             ChatRoute()
         }
         composable(MenuTabs.PROFILE) {
-            ProfileRoute()
+            // ⭐ 這裡把 onLogout 傳進 ProfileRoute
+            ProfileRoute(
+                onLogout = onLogout
+            )
         }
     }
 }
@@ -195,7 +233,7 @@ private fun BottomBar(navController: NavHostController) {
             }
         }
     }
-} // <- 這個是你剛剛缺的收尾，關掉 BottomBar
+}
 
 @Composable
 private fun AnimatedIcon(
