@@ -4,7 +4,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
@@ -47,7 +46,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.ktx.firestore
 
-// --- Routes used only inside the menu ---
+// 內層 tab 用的 route key
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -56,35 +55,31 @@ private object MenuTabs {
 }
 
 @Composable
-fun MenuScreen(outerNavController: NavController) {
-    // 這是底部四個 tab 用的 NavController
+fun MenuScreen(
+    outerNavController: NavController
+)
+{
     val innerNav: NavHostController = rememberNavController()
 
-    // Firebase & presence 狀態，提供給 Profile -> 登出
     val auth = Firebase.auth
     val db = com.google.firebase.ktx.Firebase.firestore
     val uid = auth.currentUser?.uid
 
-    // PresenceManager 只記得目前 uid 這個人
-    // 用 remember(uid) 的概念：這裡用 remember() 等價，因為這個 Composable 只會在 MenuScreen 還存在時重組
-    val presenceManager = remember(uid) {
+    val presenceManager = remember(uid)
+    {
         if (uid != null) PresenceManager(uid, db) else null
     }
 
-    // 這個 lambda 會被傳到 ProfileRoute
-    val handleLogout: () -> Unit = {
-        // 1. Firestore 上標記 offline
-        uid?.let {
-            presenceManager?.stop()
-        }
+    val handleLogout: () -> Unit =
+    {
+        presenceManager?.stop()
 
-        // 2. Firebase signOut()
         auth.signOut()
 
-        // 3. 導回最外層 Nav 的 LOGIN
-        outerNavController.navigate(Routes.LOGIN) {
-            // 清掉 MENU 這個 destination，避免回上一頁又回到登入後畫面
+        outerNavController.navigate(Routes.LOGIN)
+        {
             popUpTo(Routes.MENU) { inclusive = true }
+            launchSingleTop = true
         }
     }
 
@@ -112,10 +107,10 @@ private fun MenuNavHost(
         startDestination = MenuTabs.HOME,
         modifier = modifier
     ) {
-        composable(MenuTabs.HOME) {
+        composable(MenuTabs.HOME)
+        {
             HomeRoute(
                 onSportSelected = { sportKey ->
-                    // 如果你之後有外層的單一運動頁，就可以用 outerNavController 去那頁
                     outerNavController.navigate("sport/$sportKey")
                 }
             )
@@ -124,24 +119,19 @@ private fun MenuNavHost(
             MapRoute()
         }
         composable(MenuTabs.CHAT) {
-            ChatRoute()
+            ChatRoute(
+                onOpenChat = { otherUid ->
+                    outerNavController.navigate("chat_room/$otherUid") {
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
         composable(MenuTabs.PROFILE) {
-            // ⭐ 這裡把 onLogout 傳進 ProfileRoute
             ProfileRoute(
                 onLogout = onLogout
             )
         }
-    }
-}
-
-@Composable
-private fun Stub(name: String) {
-    Box(
-        Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = name)
     }
 }
 
@@ -186,8 +176,8 @@ private fun BottomBar(navController: NavHostController) {
             containerColor = Color.Transparent,
             tonalElevation = 0.dp,
             modifier = Modifier
-                .height(52.dp)               // 壓扁高度
-                .padding(horizontal = 8.dp)   // 內縮避免貼圓角
+                .height(52.dp)
+                .padding(horizontal = 8.dp)
         ) {
             bottomItems.forEach { item ->
                 val selected = route == item.route

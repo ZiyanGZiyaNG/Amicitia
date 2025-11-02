@@ -1,6 +1,7 @@
 package com.example.amicitia
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +24,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 一進來就決定進 app 要從哪個畫面開始
+        // app 啟動要去哪個畫面
         val startDestination = if (auth.currentUser != null) {
             Routes.MENU
         } else {
@@ -45,23 +46,23 @@ class MainActivity : ComponentActivity() {
         super.onStart()
 
         val uid = auth.currentUser?.uid
-        android.util.Log.d("Presence", "onStart uid = $uid")
-        if (uid == null) return
+        Log.d("Presence", "onStart uid = $uid")
 
-        if (presenceManager == null) {
-            presenceManager = PresenceManager(uid, db)
+        if (uid != null) {
+            // 如果現在有登入 → 確保 presenceManager 啟動心跳
+            if (presenceManager == null) {
+                presenceManager = PresenceManager(uid, db)
+            }
+            presenceManager?.start()
+        } else {
+            // 如果沒登入(登入畫面)，不應該還有舊的 presenceManager
+            presenceManager?.stop()
+            presenceManager = null
         }
-
-        presenceManager?.start()
     }
 
     override fun onStop() {
         super.onStop()
-
-        val uid = auth.currentUser?.uid
-        android.util.Log.d("Presence", "onStop uid = $uid")
-
-        // 標記下線 & 停掉心跳更新
         presenceManager?.stop()
     }
 }

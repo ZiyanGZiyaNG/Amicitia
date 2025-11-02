@@ -10,8 +10,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ProfileRoute(
-    modifier: Modifier = Modifier,
-    onLogout: (() -> Unit)? = null
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
@@ -23,7 +23,7 @@ fun ProfileRoute(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // 暫時的使用者資訊區塊
+            // 暫時顯示使用者資訊
             Text(
                 text = "py",
                 style = MaterialTheme.typography.headlineSmall
@@ -33,7 +33,7 @@ fun ProfileRoute(
 
             // 登出按鈕
             Button(
-                onClick = { onLogout?.invoke() },
+                onClick = onLogout,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
