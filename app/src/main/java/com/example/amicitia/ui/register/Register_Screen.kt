@@ -4,13 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -29,6 +25,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -42,9 +40,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -76,7 +76,7 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// 你專案登入頁的背景與主色
+// 使用登入頁的背景與主色
 import com.example.amicitia.ui.login.AnimatedGradientBackground
 import com.example.amicitia.ui.login.PrimaryBlue
 
@@ -102,19 +102,49 @@ fun RegisterScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val auth = Firebase.auth
 
-    // 螢幕高度控制位置（中間偏上）
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val topOffset = (screenHeight * 0.22f).coerceAtLeast(40.dp)
 
-    // 逐步顯示邏輯
-    val emailLooksValid by derivedStateOf {
-        Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
+    /* ---------- 逐步顯示邏輯（正確使用 remember + derivedStateOf） ---------- */
+    val emailLooksValid by remember(email) {
+        derivedStateOf {
+            Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
+        }
     }
-    val canShowNickname by derivedStateOf { emailLooksValid }
-    val canShowPassword by derivedStateOf { canShowNickname && nickname.isNotBlank() }
-    val canShowConfirm  by derivedStateOf { canShowPassword && password.isNotBlank() }
-    val passwordsMatch  by derivedStateOf { canShowConfirm && passwordConfirmation == password && passwordConfirmation.isNotBlank() }
-    val canShowAgreeAndButtons by derivedStateOf { passwordsMatch }
+    val canShowNickname = emailLooksValid
+
+    val canShowPassword by remember(canShowNickname, nickname) {
+        derivedStateOf { canShowNickname && nickname.isNotBlank() }
+    }
+    val canShowConfirm by remember(canShowPassword, password) {
+        derivedStateOf { canShowPassword && password.isNotBlank() }
+    }
+    val passwordsMatch by remember(canShowConfirm, password, passwordConfirmation) {
+        derivedStateOf {
+            canShowConfirm && passwordConfirmation == password && passwordConfirmation.isNotBlank()
+        }
+    }
+    val canShowAgreeAndButtons = passwordsMatch
+
+    /* ---------- 內容越多越往上：動態 topOffset ---------- */
+    val stepCount = remember(
+        canShowNickname, canShowPassword, canShowConfirm, canShowAgreeAndButtons
+    ) {
+        (if (canShowNickname) 1 else 0) +
+                (if (canShowPassword) 1 else 0) +
+                (if (canShowConfirm) 1 else 0) +
+                (if (canShowAgreeAndButtons) 1 else 0)
+    }
+
+    val ratio = when (stepCount) {
+        0 -> 0.16f   // 只有 Email：靠中上
+        1 -> 0.14f
+        2 -> 0.12f
+        3 -> 0.10f
+        else -> 0.08f // 全展開：更靠上
+    }
+    val topOffset = remember(screenHeight, ratio) {
+        (screenHeight * ratio).coerceIn(16.dp, 80.dp)
+    }
 
     fun submitUiOnly(): Boolean {
         fieldErrorEmail = null
@@ -137,11 +167,15 @@ fun RegisterScreen(navController: NavController) {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: error("User is null after registration")
 
-            val profile = UserProfileChangeRequest.Builder().setDisplayName(nickname).build()
+            val profile = UserProfileChangeRequest.Builder()
+                .setDisplayName(nickname)
+                .build()
             user.updateProfile(profile).await()
             user.sendEmailVerification().await()
 
-            snackbarHostState.showSnackbar("註冊成功！驗證信已寄到 $email，請點信中的連結完成驗證（可能在垃圾郵件，寄件者為 noreply）。")
+            snackbarHostState.showSnackbar(
+                "註冊成功！驗證信已寄到 $email，請點信中的連結完成驗證（可能在垃圾郵件，寄件者為 noreply）。"
+            )
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
                 launchSingleTop = true
@@ -169,7 +203,7 @@ fun RegisterScreen(navController: NavController) {
             contentWindowInsets = WindowInsets(0),
             topBar = {
                 TopAppBar(
-                    title = { /* 需要可顯示 "歡迎註冊" */ },
+                    title = { /* 可留白或放標題 */ },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -195,10 +229,19 @@ fun RegisterScreen(navController: NavController) {
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // 依內容多寡自動上移
                 Spacer(Modifier.height(topOffset))
 
-                Text("歡迎註冊", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF0F172A))
-                Text("請依序填寫欄位", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF475569))
+                Text(
+                    "歡迎註冊",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color(0xFF0F172A)
+                )
+                Text(
+                    "請依序填寫欄位",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF475569)
+                )
                 Spacer(Modifier.height(20.dp))
 
                 Surface(
@@ -221,10 +264,14 @@ fun RegisterScreen(navController: NavController) {
                             singleLine = true,
                             isError = fieldErrorEmail != null,
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
                         )
                         AnimatedVisibility(visible = fieldErrorEmail != null) {
-                            Text(fieldErrorEmail ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                fieldErrorEmail ?: "",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
 
                         // 暱稱
@@ -245,7 +292,11 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorNickname != null) {
-                                    Text(fieldErrorNickname ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        fieldErrorNickname ?: "",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
                             }
                         }
@@ -275,7 +326,11 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorPassword != null) {
-                                    Text(fieldErrorPassword ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        fieldErrorPassword ?: "",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
                             }
                         }
@@ -305,7 +360,11 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorConfirm != null) {
-                                    Text(fieldErrorConfirm ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        fieldErrorConfirm ?: "",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
                             }
                         }
@@ -347,7 +406,10 @@ fun RegisterScreen(navController: NavController) {
                                         .fillMaxWidth()
                                         .height(52.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color.White)
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = PrimaryBlue,
+                                        contentColor = Color.White
+                                    )
                                 ) {
                                     if (isLoading) {
                                         CircularProgressIndicator(

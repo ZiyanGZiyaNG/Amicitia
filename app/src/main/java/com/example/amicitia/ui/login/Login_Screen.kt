@@ -1,4 +1,3 @@
-/* 登入 UI + 動態漸層背景（呼吸效果） */
 package com.example.amicitia.ui.login
 
 import androidx.compose.animation.*

@@ -3,9 +3,16 @@ package com.example.amicitia.ui.menu
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
@@ -26,8 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -45,8 +57,63 @@ import com.example.amicitia.nav.Routes
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.ktx.firestore
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.cos
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 
-// 內層 tab 用的 route key
+/* ====== 品牌色系（與登入頁一致） ====== */
+private val PrimaryBlue = Color(0xFF3F51B5)
+
+/* ====== 動態漸層背景（與登入頁一致） ====== */
+@Composable
+private fun AnimatedGradientBackground(
+    modifier: Modifier = Modifier,
+    aStart: Color = Color(0xFFF3F6FF),
+    aMid:   Color = Color(0xFFEAF1FF),
+    aEnd:   Color = Color(0xFFDDE7FF),
+    bStart: Color = Color(0xFFE8F0FF),
+    bMid:   Color = Color(0xFFD6E3FF),
+    bEnd:   Color = Color(0xFFCBD9FF),
+) {
+    val infinite = rememberInfiniteTransition()
+    val tRaw by infinite.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val t = (1f - cos(tRaw * Math.PI).toFloat()) / 2f
+
+    val c1 = lerp(aStart, bStart, t)
+    val c2 = lerp(aMid,   bMid,   t)
+    val c3 = lerp(aEnd,   bEnd,   t)
+
+    Box(
+        modifier = modifier.drawBehind {
+            val sx = size.width  * (0.15f + 0.35f * t)
+            val sy = size.height * (0.10f + 0.25f * (1f - t))
+            val ex = size.width  * (0.85f - 0.35f * t)
+            val ey = size.height * (0.90f - 0.25f * (1f - t))
+
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(c1, c2, c3),
+                    start = Offset(sx, sy),
+                    end = Offset(ex, ey)
+                )
+            )
+        }
+    )
+}
+
+/* ====== 原本的 Menu 程式碼，套用漸層背景與色系 ====== */
+
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -57,41 +124,45 @@ private object MenuTabs {
 @Composable
 fun MenuScreen(
     outerNavController: NavController
-)
-{
+) {
     val innerNav: NavHostController = rememberNavController()
 
     val auth = Firebase.auth
     val db = com.google.firebase.ktx.Firebase.firestore
     val uid = auth.currentUser?.uid
 
-    val presenceManager = remember(uid)
-    {
+    val presenceManager = remember(uid) {
         if (uid != null) PresenceManager(uid, db) else null
     }
 
-    val handleLogout: () -> Unit =
-    {
+    val handleLogout: () -> Unit = {
         presenceManager?.stop()
-
         auth.signOut()
-
-        outerNavController.navigate(Routes.LOGIN)
-        {
+        outerNavController.navigate(Routes.LOGIN) {
             popUpTo(Routes.MENU) { inclusive = true }
             launchSingleTop = true
         }
     }
 
-    Scaffold(
-        bottomBar = { BottomBar(innerNav) }
-    ) { innerPadding ->
-        MenuNavHost(
-            navController = innerNav,
-            outerNavController = outerNavController,
-            modifier = Modifier.padding(innerPadding),
-            onLogout = handleLogout
-        )
+    // 讓整個頁面有與登入頁相同的動態漸層背景
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+    ) {
+        AnimatedGradientBackground(modifier = Modifier.matchParentSize())
+
+        Scaffold(
+            containerColor = Color.Transparent, // 交給背景呈現
+            bottomBar = { BottomBar(innerNav) }
+        ) { innerPadding ->
+            MenuNavHost(
+                navController = innerNav,
+                outerNavController = outerNavController,
+                modifier = Modifier.padding(innerPadding),
+                onLogout = handleLogout
+            )
+        }
     }
 }
 
@@ -107,8 +178,7 @@ private fun MenuNavHost(
         startDestination = MenuTabs.HOME,
         modifier = modifier
     ) {
-        composable(MenuTabs.HOME)
-        {
+        composable(MenuTabs.HOME) {
             HomeRoute(
                 onSportSelected = { sportKey ->
                     outerNavController.navigate("sport/$sportKey")
@@ -160,12 +230,10 @@ private fun BottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
 
     Surface(
-        color = Color.White.copy(alpha = 0.6f),
+        color = Color.White.copy(alpha = 0.75f), // 與登入頁相性好的半透明白
         tonalElevation = 12.dp,
         shadowElevation = 16.dp,
-        shape = MaterialTheme.shapes.large.copy(
-            all = androidx.compose.foundation.shape.CornerSize(24.dp)
-        ),
+        shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
         modifier = Modifier.padding(
             start = 24.dp,
             end = 24.dp,
@@ -202,20 +270,17 @@ private fun BottomBar(navController: NavHostController) {
                                     contentDescription = item.label
                                 )
                             }
-
                             val count = item.badgeCount
                             if (count != null && count > 0) {
-                                BadgedBox(badge = { Badge { Text("$count") } }) {
-                                    iconContent()
-                                }
+                                BadgedBox(badge = { Badge { Text("$count") } }) { iconContent() }
                             } else {
                                 iconContent()
                             }
                         }
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.Black,
-                        unselectedIconColor = Color.Gray,
+                        selectedIconColor = PrimaryBlue,          // 與登入頁統一
+                        unselectedIconColor = Color(0xFF64748B), // slate-500-ish
                         indicatorColor = Color.Transparent
                     ),
                     alwaysShowLabel = false
@@ -246,6 +311,7 @@ private fun AnimatedIcon(
         modifier = Modifier.graphicsLayer(
             scaleX = scale,
             scaleY = scale
-        )
+        ),
+        tint = if (selected) PrimaryBlue else Color(0xFF64748B)
     )
 }

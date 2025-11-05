@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "851065604007",
+    "firebase_url": "https://amitie-b2934e65-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "amitie-b2934e65",
+    "storage_bucket": "amitie-b2934e65.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851065604007:android:9e467140920b4dcca59882",
+        "android_client_info": {
+          "package_name": "com.example.amicitia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4VqCSigDo_9cJ2dHRqdMh557m8ZfxJ-w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

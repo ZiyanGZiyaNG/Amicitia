@@ -1,6 +1,5 @@
 package com.example.amicitia.ui.menu.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -54,7 +53,7 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            // 🔑 不要再設整頁背景色，讓動態漸層透出
             .padding(horizontal = 16.dp, vertical = 20.dp)
     ) {
         Text(
@@ -86,7 +85,7 @@ fun HomeScreen(
                             ElevatedCard(
                                 onClick = { onSportSelected(sport.key) },
                                 colors = CardDefaults.elevatedCardColors(
-                                    containerColor = Color(0xFFF7F7FA)
+                                    containerColor = Color(0xFFF7F7FA) // 卡片保留淺色，對比漸層
                                 ),
                                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier
