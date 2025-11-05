@@ -1,5 +1,5 @@
 package com.example.amicitia.ui.register
-
+//
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
