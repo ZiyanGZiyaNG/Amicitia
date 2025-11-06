@@ -1,5 +1,5 @@
 package com.example.amicitia.ui.register
-//
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -12,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +23,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
@@ -70,15 +72,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.amicitia.ui.theme.PrimaryBlue
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
-// 使用登入頁的背景與主色
-import com.example.amicitia.ui.login.AnimatedGradientBackground
-import com.example.amicitia.ui.login.PrimaryBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,14 +103,13 @@ fun RegisterScreen(navController: NavController) {
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-    /* ---------- 逐步顯示邏輯（正確使用 remember + derivedStateOf） ---------- */
+    // ---------- 驗證階段切換 ----------
     val emailLooksValid by remember(email) {
         derivedStateOf {
             Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
         }
     }
     val canShowNickname = emailLooksValid
-
     val canShowPassword by remember(canShowNickname, nickname) {
         derivedStateOf { canShowNickname && nickname.isNotBlank() }
     }
@@ -125,7 +123,7 @@ fun RegisterScreen(navController: NavController) {
     }
     val canShowAgreeAndButtons = passwordsMatch
 
-    /* ---------- 內容越多越往上：動態 topOffset ---------- */
+    // ---------- 動態上移 ----------
     val stepCount = remember(
         canShowNickname, canShowPassword, canShowConfirm, canShowAgreeAndButtons
     ) {
@@ -134,13 +132,12 @@ fun RegisterScreen(navController: NavController) {
                 (if (canShowConfirm) 1 else 0) +
                 (if (canShowAgreeAndButtons) 1 else 0)
     }
-
     val ratio = when (stepCount) {
-        0 -> 0.16f   // 只有 Email：靠中上
+        0 -> 0.16f
         1 -> 0.14f
         2 -> 0.12f
         3 -> 0.10f
-        else -> 0.08f // 全展開：更靠上
+        else -> 0.08f
     }
     val topOffset = remember(screenHeight, ratio) {
         (screenHeight * ratio).coerceIn(16.dp, 80.dp)
@@ -151,12 +148,11 @@ fun RegisterScreen(navController: NavController) {
         fieldErrorPassword = null
         fieldErrorConfirm = null
         fieldErrorNickname = null
-
         var ok = true
         if (!emailLooksValid) { fieldErrorEmail = "電子郵件格式錯誤"; ok = false }
         if (nickname.isBlank()) { fieldErrorNickname = "請輸入暱稱"; ok = false }
         if (password.isBlank()) { fieldErrorPassword = "請輸入密碼"; ok = false }
-        if (passwordConfirmation != password) { fieldErrorConfirm = "兩次輸入的密碼不一致"; ok = false }
+        if (passwordConfirmation != password) { fieldErrorConfirm = "兩次密碼不一致"; ok = false }
         if (!agreeTos) ok = false
         return ok
     }
@@ -165,7 +161,7 @@ fun RegisterScreen(navController: NavController) {
         try {
             isLoading = true
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = result.user ?: error("User is null after registration")
+            val user = result.user ?: error("User is null")
 
             val profile = UserProfileChangeRequest.Builder()
                 .setDisplayName(nickname)
@@ -173,9 +169,7 @@ fun RegisterScreen(navController: NavController) {
             user.updateProfile(profile).await()
             user.sendEmailVerification().await()
 
-            snackbarHostState.showSnackbar(
-                "註冊成功！驗證信已寄到 $email，請點信中的連結完成驗證（可能在垃圾郵件，寄件者為 noreply）。"
-            )
+            snackbarHostState.showSnackbar("註冊成功！請查收驗證信（寄件者 noreply）。")
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
                 launchSingleTop = true
@@ -193,9 +187,9 @@ fun RegisterScreen(navController: NavController) {
             .systemBarsPadding()
             .imePadding()
     ) {
-        // 背景（呼吸漸層 + 底部柔光）
-        AnimatedGradientBackground(modifier = Modifier.matchParentSize())
-        BottomDecorBackground(modifier = Modifier.matchParentSize())
+        // 背景（呼吸漸層 + 柔光波浪）
+        AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+        BottomDecorBackground(modifier = Modifier.fillMaxSize())
 
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -203,7 +197,7 @@ fun RegisterScreen(navController: NavController) {
             contentWindowInsets = WindowInsets(0),
             topBar = {
                 TopAppBar(
-                    title = { /* 可留白或放標題 */ },
+                    title = {},
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -219,7 +213,6 @@ fun RegisterScreen(navController: NavController) {
                 )
             }
         ) { innerPadding ->
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -229,19 +222,9 @@ fun RegisterScreen(navController: NavController) {
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 依內容多寡自動上移
                 Spacer(Modifier.height(topOffset))
-
-                Text(
-                    "歡迎註冊",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color(0xFF0F172A)
-                )
-                Text(
-                    "請依序填寫欄位",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF475569)
-                )
+                Text("歡迎註冊", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF0F172A))
+                Text("請依序填寫欄位", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF475569))
                 Spacer(Modifier.height(20.dp))
 
                 Surface(
@@ -255,7 +238,6 @@ fun RegisterScreen(navController: NavController) {
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Email
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it; fieldErrorEmail = null },
@@ -267,19 +249,10 @@ fun RegisterScreen(navController: NavController) {
                             modifier = Modifier.fillMaxWidth()
                         )
                         AnimatedVisibility(visible = fieldErrorEmail != null) {
-                            Text(
-                                fieldErrorEmail ?: "",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Text(fieldErrorEmail ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
 
-                        // 暱稱
-                        AnimatedVisibility(
-                            visible = canShowNickname,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
+                        AnimatedVisibility(visible = canShowNickname, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                             Column {
                                 OutlinedTextField(
                                     value = nickname,
@@ -292,21 +265,12 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorNickname != null) {
-                                    Text(
-                                        fieldErrorNickname ?: "",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+                                    Text(fieldErrorNickname ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
 
-                        // 密碼
-                        AnimatedVisibility(
-                            visible = canShowPassword,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
+                        AnimatedVisibility(visible = canShowPassword, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                             Column {
                                 OutlinedTextField(
                                     value = password,
@@ -326,21 +290,12 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorPassword != null) {
-                                    Text(
-                                        fieldErrorPassword ?: "",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+                                    Text(fieldErrorPassword ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
 
-                        // 確認密碼
-                        AnimatedVisibility(
-                            visible = canShowConfirm,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
+                        AnimatedVisibility(visible = canShowConfirm, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                             Column {
                                 OutlinedTextField(
                                     value = passwordConfirmation,
@@ -360,27 +315,14 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                                 AnimatedVisibility(visible = fieldErrorConfirm != null) {
-                                    Text(
-                                        fieldErrorConfirm ?: "",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+                                    Text(fieldErrorConfirm ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
 
-                        // 勾選 + 按鈕
-                        AnimatedVisibility(
-                            visible = canShowAgreeAndButtons,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
+                        AnimatedVisibility(visible = canShowAgreeAndButtons, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Start
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = agreeTos,
                                         onCheckedChange = { agreeTos = it },
@@ -402,21 +344,12 @@ fun RegisterScreen(navController: NavController) {
                                         }
                                     },
                                     enabled = !isLoading && agreeTos,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(52.dp),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = PrimaryBlue,
-                                        contentColor = Color.White
-                                    )
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color.White)
                                 ) {
                                     if (isLoading) {
-                                        CircularProgressIndicator(
-                                            Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = Color.White
-                                        )
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                                         Spacer(Modifier.size(8.dp))
                                         Text("處理中…")
                                     } else {
@@ -429,23 +362,45 @@ fun RegisterScreen(navController: NavController) {
                 }
 
                 Spacer(Modifier.weight(1f))
-                Text(
-                    text = "Power By ZiyanGZiyaNG",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Black
-                )
+                Text("Power By ZiyanGZiyaNG", style = MaterialTheme.typography.bodySmall, color = Color.Black)
                 Spacer(Modifier.height(12.dp))
             }
         }
     }
 }
 
-/* ---------- 背景柔光 + 波浪 ---------- */
+/* ---------- 背景動畫 ---------- */
 @Composable
-private fun BottomDecorBackground(
+private fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
-    tint: Color = PrimaryBlue
+    durationMs: Int = 12000
 ) {
+    val infinite = rememberInfiniteTransition(label = "bg")
+    val shift by infinite.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMs, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shift"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = listOf(
+            PrimaryBlue.copy(alpha = 0.25f),
+            Color(0xFFB4C6FF).copy(alpha = 0.25f),
+            Color(0xFFCCE3FF).copy(alpha = 0.25f)
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(1000f * (0.3f + shift), 1000f * (0.7f - shift))
+    )
+    Box(modifier = modifier.background(brush))
+}
+
+/* ---------- 底部柔光波浪 ---------- */
+@Composable
+private fun BottomDecorBackground(modifier: Modifier = Modifier, tint: Color = PrimaryBlue) {
     val infinite = rememberInfiniteTransition()
     val drift by infinite.animateFloat(
         initialValue = -12f,
@@ -460,7 +415,6 @@ private fun BottomDecorBackground(
         val w = size.width
         val h = size.height
 
-        // 柔光
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(tint.copy(alpha = 0.18f), Color.Transparent),
@@ -469,7 +423,6 @@ private fun BottomDecorBackground(
             )
         )
 
-        // 波浪
         val y = h * 0.60f + drift
         val wave = Path().apply {
             moveTo(0f, y)
