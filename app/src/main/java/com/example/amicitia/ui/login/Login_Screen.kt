@@ -1,5 +1,6 @@
 package com.example.amicitia.ui.login
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -47,7 +48,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.example.amicitia.R
 import com.example.amicitia.nav.Routes
-import com.google.firebase.auth.ActionCodeSettings
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
@@ -141,6 +142,12 @@ fun LoginScreen(navController: NavController) {
     val pwFocus = remember { FocusRequester() }
     val auth = Firebase.auth
 
+    // 印出 app 連到哪個 Firebase 專案（避免接錯專案）
+    LaunchedEffect(Unit) {
+        val o = com.google.firebase.FirebaseApp.getInstance().options
+        Log.i("FirebaseCheck", "projectId=${o.projectId}, appId=${o.applicationId}")
+    }
+
     /** 登入流程 **/
     suspend fun login() {
         try {
@@ -168,34 +175,35 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    /** 寄送重設密碼信 **/
+    /** 寄送重設密碼信（不用 Dynamic Links）＋ 詳細錯誤碼 **/
     suspend fun sendPasswordReset(targetEmail: String) {
+        resetLoading = true
+        formMessage = null
         try {
-            resetLoading = true
-            formMessage = null
+            val mail = targetEmail.trim()
             auth.setLanguageCode("zh-TW")
 
-            val acs = ActionCodeSettings.newBuilder()
-                .setUrl("https://amicitia.page.link/reset")
-                .setHandleCodeInApp(true)
-                .setAndroidPackageName("com.example.amicitia", true, null)
-                .build()
+            // 先確認這個 email 的 sign-in methods
+            val methods = auth.fetchSignInMethodsForEmail(mail).await().signInMethods ?: emptyList()
+            Log.i("ResetPW", "email=$mail, signInMethods=$methods")
 
-            try {
-                auth.sendPasswordResetEmail(targetEmail.trim(), acs).await()
-            } catch (_: Exception) {
-                auth.sendPasswordResetEmail(targetEmail.trim()).await()
-            }
+            // 直接使用 Firebase 預設重設頁面寄送
+            auth.sendPasswordResetEmail(mail).await()
 
-            formMessage = "已寄出重設密碼信到 $targetEmail"
+            // 中性訊息（避免枚舉）
+            formMessage = "如果這個 Email 已註冊，我們已寄出重設連結；請查看收件匣與垃圾郵件。"
             showResetDialog = false
+            Log.i("ResetPW", "reset email SENT to $mail")
         } catch (e: Exception) {
-            val msg = e.message?.lowercase() ?: ""
-            formMessage = when {
-                "no user record" in msg -> "查無此帳號"
-                "invalid email" in msg -> "Email 格式不正確"
-                "blocked" in msg || "too many requests" in msg -> "請求過於頻繁，稍後再試"
-                else -> "寄送失敗，請確認 Email 是否正確"
+            val code = (e as? FirebaseAuthException)?.errorCode ?: "UNKNOWN"
+            Log.e("ResetPW", "FAILED code=$code, msg=${e.message}", e)
+
+            // 依錯誤碼顯示更精準訊息
+            formMessage = when (code) {
+                "ERROR_INVALID_EMAIL" -> "Email 格式不正確"
+                "ERROR_TOO_MANY_REQUESTS" -> "請求過於頻繁，稍後再試"
+                "ERROR_NETWORK_REQUEST_FAILED" -> "網路連線錯誤，請檢查網路"
+                else -> "寄送失敗（$code）"
             }
         } finally {
             resetLoading = false
@@ -382,8 +390,7 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    // 忘記密碼對話框（同色系動態漸層 + 輕霧面層）
-    // 忘記密碼對話框（動態漸層 + 同字色 + 同框線色）
+    // 忘記密碼對話框
     if (showResetDialog) {
         Dialog(onDismissRequest = { if (!resetLoading) showResetDialog = false }) {
             Box(
@@ -392,7 +399,6 @@ fun LoginScreen(navController: NavController) {
                     .wrapContentHeight()
                     .clip(RoundedCornerShape(22.dp))
             ) {
-                // 背景漸層：與主畫面完全相同
                 AnimatedGradientBackground(
                     modifier = Modifier.matchParentSize(),
                     aStart = Color(0xFFF3F6FF),
@@ -403,56 +409,29 @@ fun LoginScreen(navController: NavController) {
                     bEnd = Color(0xFFCBD9FF)
                 )
 
-                // 淺霧面層
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .background(Color.White.copy(alpha = 0.35f))
-                        .border(
-                            width = 1.dp,
-                            color = PrimaryBlue.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(22.dp)
-                        )
+                        .border(1.dp, PrimaryBlue.copy(alpha = 0.3f), RoundedCornerShape(22.dp))
                 )
 
                 Column(
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp, vertical = 22.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "重設密碼",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFF0F172A)
-                    )
-                    Text(
-                        "請輸入你的註冊 Email，我們會寄送重設密碼連結給你。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF475569)
-                    )
+                    Text("重設密碼", style = MaterialTheme.typography.titleMedium, color = Color(0xFF0F172A))
+                    Text("請輸入你的註冊 Email，我們會寄送重設密碼連結給你。", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF475569))
 
                     OutlinedTextField(
                         value = resetEmail,
-                        onValueChange = {
-                            resetEmail = it.replace(" ", "").replace("\n", "")
-                        },
+                        onValueChange = { resetEmail = it.replace(" ", "").replace("\n", "") },
                         singleLine = true,
                         enabled = !resetLoading,
-                        label = {
-                            Text("電子郵件", color = Color(0xFF475569))
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Outlined.Email,
-                                contentDescription = null,
-                                tint = Color(0xFF475569)
-                            )
-                        },
+                        label = { Text("電子郵件", color = Color(0xFF475569)) },
+                        leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null, tint = Color(0xFF475569)) },
                         shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Done
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryBlue,
@@ -486,11 +465,7 @@ fun LoginScreen(navController: NavController) {
                             colors = ButtonDefaults.textButtonColors(contentColor = PrimaryBlue)
                         ) {
                             if (resetLoading) {
-                                CircularProgressIndicator(
-                                    Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = PrimaryBlue
-                                )
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = PrimaryBlue)
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text("寄送")
