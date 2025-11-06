@@ -1,5 +1,6 @@
 package com.example.amicitia.ui.register
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -55,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +76,9 @@ import androidx.navigation.NavController
 import com.example.amicitia.ui.theme.PrimaryBlue
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -103,11 +107,8 @@ fun RegisterScreen(navController: NavController) {
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-    // ---------- 驗證階段切換 ----------
     val emailLooksValid by remember(email) {
-        derivedStateOf {
-            Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
-        }
+        derivedStateOf { Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim()) }
     }
     val canShowNickname = emailLooksValid
     val canShowPassword by remember(canShowNickname, nickname) {
@@ -117,13 +118,10 @@ fun RegisterScreen(navController: NavController) {
         derivedStateOf { canShowPassword && password.isNotBlank() }
     }
     val passwordsMatch by remember(canShowConfirm, password, passwordConfirmation) {
-        derivedStateOf {
-            canShowConfirm && passwordConfirmation == password && passwordConfirmation.isNotBlank()
-        }
+        derivedStateOf { canShowConfirm && passwordConfirmation == password && passwordConfirmation.isNotBlank() }
     }
     val canShowAgreeAndButtons = passwordsMatch
 
-    // ---------- 動態上移 ----------
     val stepCount = remember(
         canShowNickname, canShowPassword, canShowConfirm, canShowAgreeAndButtons
     ) {
@@ -132,22 +130,11 @@ fun RegisterScreen(navController: NavController) {
                 (if (canShowConfirm) 1 else 0) +
                 (if (canShowAgreeAndButtons) 1 else 0)
     }
-    val ratio = when (stepCount) {
-        0 -> 0.16f
-        1 -> 0.14f
-        2 -> 0.12f
-        3 -> 0.10f
-        else -> 0.08f
-    }
-    val topOffset = remember(screenHeight, ratio) {
-        (screenHeight * ratio).coerceIn(16.dp, 80.dp)
-    }
+    val ratio = when (stepCount) { 0 -> 0.16f; 1 -> 0.14f; 2 -> 0.12f; 3 -> 0.10f; else -> 0.08f }
+    val topOffset = remember(screenHeight, ratio) { (screenHeight * ratio).coerceIn(16.dp, 80.dp) }
 
     fun submitUiOnly(): Boolean {
-        fieldErrorEmail = null
-        fieldErrorPassword = null
-        fieldErrorConfirm = null
-        fieldErrorNickname = null
+        fieldErrorEmail = null; fieldErrorPassword = null; fieldErrorConfirm = null; fieldErrorNickname = null
         var ok = true
         if (!emailLooksValid) { fieldErrorEmail = "電子郵件格式錯誤"; ok = false }
         if (nickname.isBlank()) { fieldErrorNickname = "請輸入暱稱"; ok = false }
@@ -163,18 +150,37 @@ fun RegisterScreen(navController: NavController) {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: error("User is null")
 
+            // 1) 寫入 Auth.displayName
             val profile = UserProfileChangeRequest.Builder()
                 .setDisplayName(nickname)
                 .build()
             user.updateProfile(profile).await()
+
+            // 2) 寫入 Firestore: users/{uid}
+            val db = Firebase.firestore
+            val doc = mapOf(
+                "uid" to user.uid,
+                "email" to (user.email ?: email),
+                "nickname" to nickname,
+                "bio" to "",
+                "recentActivities" to emptyList<String>(),
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            db.collection("users").document(user.uid)
+                .set(doc, SetOptions.merge())
+                .await()
+
+            // 3) 寄驗證信（可保留）
             user.sendEmailVerification().await()
 
-            snackbarHostState.showSnackbar("註冊成功！請查收驗證信（寄件者 noreply）。")
+            snackbarHostState.showSnackbar("註冊成功！已寫入暱稱，請查收驗證信。")
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
                 launchSingleTop = true
             }
         } catch (e: Exception) {
+            Log.e("Register", "register failed", e)
             snackbarHostState.showSnackbar(e.message ?: "註冊失敗，請稍候再試")
         } finally {
             isLoading = false
@@ -187,7 +193,6 @@ fun RegisterScreen(navController: NavController) {
             .systemBarsPadding()
             .imePadding()
     ) {
-        // 背景（呼吸漸層 + 柔光波浪）
         AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
         BottomDecorBackground(modifier = Modifier.fillMaxSize())
 
@@ -207,9 +212,7 @@ fun RegisterScreen(navController: NavController) {
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             }
         ) { innerPadding ->
@@ -344,7 +347,9 @@ fun RegisterScreen(navController: NavController) {
                                         }
                                     },
                                     enabled = !isLoading && agreeTos,
-                                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color.White)
                                 ) {
@@ -379,13 +384,9 @@ private fun AnimatedGradientBackground(
     val shift by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMs, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = infiniteRepeatable(animation = tween(durationMs, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
         label = "shift"
     )
-
     val brush = Brush.linearGradient(
         colors = listOf(
             PrimaryBlue.copy(alpha = 0.25f),
@@ -405,16 +406,11 @@ private fun BottomDecorBackground(modifier: Modifier = Modifier, tint: Color = P
     val drift by infinite.animateFloat(
         initialValue = -12f,
         targetValue = 12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 9000, easing = LinearEasing), repeatMode = RepeatMode.Reverse)
     )
-
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(tint.copy(alpha = 0.18f), Color.Transparent),
@@ -422,7 +418,6 @@ private fun BottomDecorBackground(modifier: Modifier = Modifier, tint: Color = P
                 radius = h * 0.75f
             )
         )
-
         val y = h * 0.60f + drift
         val wave = Path().apply {
             moveTo(0f, y)
@@ -433,11 +428,7 @@ private fun BottomDecorBackground(modifier: Modifier = Modifier, tint: Color = P
         drawPath(
             path = wave,
             brush = Brush.verticalGradient(
-                colors = listOf(
-                    tint.copy(alpha = 0.10f),
-                    tint.copy(alpha = 0.04f),
-                    Color.Transparent
-                ),
+                colors = listOf(tint.copy(alpha = 0.10f), tint.copy(alpha = 0.04f), Color.Transparent),
                 startY = y - 40f, endY = h
             )
         )

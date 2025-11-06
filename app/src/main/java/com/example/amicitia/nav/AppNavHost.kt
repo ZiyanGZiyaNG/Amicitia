@@ -16,7 +16,7 @@ object Routes {
     const val REGISTER = "register"
     const val MENU = "menu"
     const val CHAT_ROOM = "chat_room/{otherUid}"
-    // HOME/MAP/CHAT_LIST/PROFILE 是 Menu 內部用，放哪裡都行
+    const val SETTINGS = "settings"
 }
 
 @Composable

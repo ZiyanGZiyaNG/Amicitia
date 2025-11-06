@@ -1,70 +1,37 @@
 package com.example.amicitia.ui.menu
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
+import com.example.amicitia.nav.Routes
+import com.example.amicitia.presence.PresenceManager
 import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
-import com.example.amicitia.presence.PresenceManager
-import com.example.amicitia.nav.Routes
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.ktx.firestore
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.cos
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.LinearEasing
-//
+
 /* ====== 品牌色系（與登入頁一致） ====== */
 private val PrimaryBlue = Color(0xFF3F51B5)
 
@@ -112,8 +79,7 @@ private fun AnimatedGradientBackground(
     )
 }
 
-/* ====== 原本的 Menu 程式碼，套用漸層背景與色系 ====== */
-
+/* ====== Menu Tabs ====== */
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -144,7 +110,6 @@ fun MenuScreen(
         }
     }
 
-    // 讓整個頁面有與登入頁相同的動態漸層背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -153,7 +118,7 @@ fun MenuScreen(
         AnimatedGradientBackground(modifier = Modifier.matchParentSize())
 
         Scaffold(
-            containerColor = Color.Transparent, // 交給背景呈現
+            containerColor = Color.Transparent,
             bottomBar = { BottomBar(innerNav) }
         ) { innerPadding ->
             MenuNavHost(
@@ -199,7 +164,8 @@ private fun MenuNavHost(
         }
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
-                onLogout = onLogout
+                onLogout = onLogout,
+                onOpenSettings = { outerNavController.navigate(Routes.SETTINGS) } // ✅ 修好這裡
             )
         }
     }
@@ -221,7 +187,7 @@ private data class BottomItem(
 private val bottomItems = listOf(
     BottomItem(MenuTabs.HOME, Icons.Outlined.Home, "首頁"),
     BottomItem(MenuTabs.MAP, Icons.Outlined.Map, "地圖"),
-    BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天", badgeCount = null),
+    BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
 
@@ -230,7 +196,7 @@ private fun BottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
 
     Surface(
-        color = Color.White.copy(alpha = 0.75f), // 與登入頁相性好的半透明白
+        color = Color.White.copy(alpha = 0.75f),
         tonalElevation = 12.dp,
         shadowElevation = 16.dp,
         shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
@@ -262,25 +228,15 @@ private fun BottomBar(navController: NavHostController) {
                         }
                     },
                     icon = {
-                        Box(Modifier.padding(bottom = 2.dp)) {
-                            val iconContent = @Composable {
-                                AnimatedIcon(
-                                    selected = selected,
-                                    icon = item.icon,
-                                    contentDescription = item.label
-                                )
-                            }
-                            val count = item.badgeCount
-                            if (count != null && count > 0) {
-                                BadgedBox(badge = { Badge { Text("$count") } }) { iconContent() }
-                            } else {
-                                iconContent()
-                            }
-                        }
+                        AnimatedIcon(
+                            selected = selected,
+                            icon = item.icon,
+                            contentDescription = item.label
+                        )
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = PrimaryBlue,          // 與登入頁統一
-                        unselectedIconColor = Color(0xFF64748B), // slate-500-ish
+                        selectedIconColor = PrimaryBlue,
+                        unselectedIconColor = Color(0xFF64748B),
                         indicatorColor = Color.Transparent
                     ),
                     alwaysShowLabel = false
