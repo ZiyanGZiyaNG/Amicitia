@@ -55,10 +55,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// 主色
 val PrimaryBlue = Color(0xFF3F51B5)
 
-/** 動態漸層背景 **/
 @Composable
 fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
@@ -100,7 +98,6 @@ fun AnimatedGradientBackground(
     )
 }
 
-/** App Logo **/
 @Composable
 fun LoginLogo(modifier: Modifier = Modifier) {
     Box(
@@ -122,7 +119,6 @@ fun LoginLogo(modifier: Modifier = Modifier) {
     }
 }
 
-/** Login 主畫面（含忘記密碼流程） **/
 @Composable
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
@@ -142,13 +138,11 @@ fun LoginScreen(navController: NavController) {
     val pwFocus = remember { FocusRequester() }
     val auth = Firebase.auth
 
-    // 印出 app 連到哪個 Firebase 專案（避免接錯專案）
     LaunchedEffect(Unit) {
         val o = com.google.firebase.FirebaseApp.getInstance().options
         Log.i("FirebaseCheck", "projectId=${o.projectId}, appId=${o.applicationId}")
     }
 
-    /** 登入流程 **/
     suspend fun login() {
         try {
             loading = true
@@ -175,7 +169,6 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    /** 寄送重設密碼信（不用 Dynamic Links）＋ 詳細錯誤碼 **/
     suspend fun sendPasswordReset(targetEmail: String) {
         resetLoading = true
         formMessage = null
@@ -183,14 +176,11 @@ fun LoginScreen(navController: NavController) {
             val mail = targetEmail.trim()
             auth.setLanguageCode("zh-TW")
 
-            // 先確認這個 email 的 sign-in methods
             val methods = auth.fetchSignInMethodsForEmail(mail).await().signInMethods ?: emptyList()
             Log.i("ResetPW", "email=$mail, signInMethods=$methods")
 
-            // 直接使用 Firebase 預設重設頁面寄送
             auth.sendPasswordResetEmail(mail).await()
 
-            // 中性訊息（避免枚舉）
             formMessage = "如果這個 Email 已註冊，我們已寄出重設連結；請查看收件匣與垃圾郵件。"
             showResetDialog = false
             Log.i("ResetPW", "reset email SENT to $mail")
@@ -198,7 +188,6 @@ fun LoginScreen(navController: NavController) {
             val code = (e as? FirebaseAuthException)?.errorCode ?: "UNKNOWN"
             Log.e("ResetPW", "FAILED code=$code, msg=${e.message}", e)
 
-            // 依錯誤碼顯示更精準訊息
             formMessage = when (code) {
                 "ERROR_INVALID_EMAIL" -> "Email 格式不正確"
                 "ERROR_TOO_MANY_REQUESTS" -> "請求過於頻繁，稍後再試"
@@ -210,7 +199,6 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    // ============ UI ============
 
     Box(
         modifier = Modifier
@@ -390,7 +378,6 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    // 忘記密碼對話框
     if (showResetDialog) {
         Dialog(onDismissRequest = { if (!resetLoading) showResetDialog = false }) {
             Box(

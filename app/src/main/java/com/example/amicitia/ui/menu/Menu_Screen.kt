@@ -1,15 +1,35 @@
 package com.example.amicitia.ui.menu
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
@@ -19,23 +39,26 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
 import com.example.amicitia.presence.PresenceManager
 import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import com.google.firebase.firestore.ktx.firestore
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.cos
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.graphicsLayer
 
-/* ====== 品牌色系（與登入頁一致） ====== */
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-/* ====== 動態漸層背景（與登入頁一致） ====== */
 @Composable
 private fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
@@ -52,7 +75,7 @@ private fun AnimatedGradientBackground(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
         )
     )
     val t = (1f - cos(tRaw * Math.PI).toFloat()) / 2f
@@ -79,7 +102,6 @@ private fun AnimatedGradientBackground(
     )
 }
 
-/* ====== Menu Tabs ====== */
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -94,18 +116,24 @@ fun MenuScreen(
     val innerNav: NavHostController = rememberNavController()
 
     val auth = Firebase.auth
-    val db = com.google.firebase.ktx.Firebase.firestore
+    val db = Firebase.firestore
     val uid = auth.currentUser?.uid
 
     val presenceManager = remember(uid) {
         if (uid != null) PresenceManager(uid, db) else null
     }
 
+    // 與畫面生命週期綁定 Presence
+    DisposableEffect(uid) {
+        presenceManager?.start()
+        onDispose { presenceManager?.stop() }
+    }
+
     val handleLogout: () -> Unit = {
         presenceManager?.stop()
         auth.signOut()
         outerNavController.navigate(Routes.LOGIN) {
-            popUpTo(Routes.MENU) { inclusive = true }
+            popUpTo(outerNavController.graph.startDestinationId) { inclusive = true }
             launchSingleTop = true
         }
     }
@@ -164,8 +192,8 @@ private fun MenuNavHost(
         }
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
+                outerNavController = outerNavController,
                 onLogout = onLogout,
-                onOpenSettings = { outerNavController.navigate(Routes.SETTINGS) } // ✅ 修好這裡
             )
         }
     }
@@ -261,13 +289,14 @@ private fun AnimatedIcon(
         label = "icon-scale"
     )
 
-    Icon(
+    androidx.compose.material3.Icon(
         imageVector = icon,
         contentDescription = contentDescription,
-        modifier = Modifier.graphicsLayer(
-            scaleX = scale,
-            scaleY = scale
-        ),
+        modifier = Modifier
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale
+            ),
         tint = if (selected) PrimaryBlue else Color(0xFF64748B)
     )
 }

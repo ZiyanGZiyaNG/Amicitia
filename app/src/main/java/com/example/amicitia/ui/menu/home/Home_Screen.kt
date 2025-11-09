@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/* -------------------- 公開的 Route：處理點擊邏輯 -------------------- */
 
 @Composable
 fun HomeRoute(
@@ -26,7 +25,6 @@ fun HomeRoute(
     )
 }
 
-/* -------------------- 純 UI：運動選擇網格 -------------------- */
 
 private data class SportItem(
     val key: String,
@@ -48,12 +46,11 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onSportSelected: (String) -> Unit = {}
 ) {
-    val chunked = remember { sports.chunked(3) } // 每排三個
+    val chunked = remember { sports.chunked(3) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            // 🔑 不要再設整頁背景色，讓動態漸層透出
             .padding(horizontal = 16.dp, vertical = 20.dp)
     ) {
         Text(
@@ -64,7 +61,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // 下面的區塊佔滿剩下所有高度
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,7 +81,7 @@ fun HomeScreen(
                             ElevatedCard(
                                 onClick = { onSportSelected(sport.key) },
                                 colors = CardDefaults.elevatedCardColors(
-                                    containerColor = Color(0xFFF7F7FA) // 卡片保留淺色，對比漸層
+                                    containerColor = Color(0xFFF7F7FA)
                                 ),
                                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier
@@ -115,7 +111,6 @@ fun HomeScreen(
                             }
                         }
 
-                        // 若最後一列不滿三個，補空白
                         repeat(3 - rowItems.size) {
                             Spacer(
                                 modifier = Modifier

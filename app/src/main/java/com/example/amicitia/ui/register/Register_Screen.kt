@@ -374,7 +374,6 @@ fun RegisterScreen(navController: NavController) {
     }
 }
 
-/* ---------- 背景動畫 ---------- */
 @Composable
 private fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
@@ -399,7 +398,6 @@ private fun AnimatedGradientBackground(
     Box(modifier = modifier.background(brush))
 }
 
-/* ---------- 底部柔光波浪 ---------- */
 @Composable
 private fun BottomDecorBackground(modifier: Modifier = Modifier, tint: Color = PrimaryBlue) {
     val infinite = rememberInfiniteTransition()

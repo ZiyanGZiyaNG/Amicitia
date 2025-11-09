@@ -15,31 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.PrivacyTip
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,7 +31,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.navigation.NavController
 import com.example.amicitia.R
+import com.example.amicitia.nav.Routes
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -61,8 +41,8 @@ import com.google.firebase.ktx.Firebase
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileRoute(
-    onLogout: () -> Unit,
-    onOpenSettings: () -> Unit = {}, // 保留給未來導頁用，現在用 BottomSheet
+    outerNavController: NavController,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val user = Firebase.auth.currentUser
@@ -72,16 +52,14 @@ fun ProfileRoute(
     var totalMinutes by remember { mutableStateOf(0L) }
     var streakDays by remember { mutableStateOf(0L) }
 
-    // BottomSheet 狀態
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSettingsSheet by remember { mutableStateOf(false) }
 
-    // 齒輪尺寸＋緩衝 → 讓內容整體往下，避免重疊
     val gearSize = 28.dp
     val gearMargin = 12.dp
     val contentTopPadding = gearSize + gearMargin * 2 // ≈ 52.dp
 
-    // 讀取 Firestore
+    // 讀取使用者資料
     LaunchedEffect(user?.uid) {
         user?.uid?.let { uid ->
             Firebase.firestore.collection("users").document(uid).get()
@@ -96,13 +74,12 @@ fun ProfileRoute(
         }
     }
 
-    // ===== 主畫面 =====
+    // ————————————— UI —————————————
     Box(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
-        // 內容：整體往下墊高
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -110,7 +87,6 @@ fun ProfileRoute(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header：頭像 + 三個統計
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,15 +105,14 @@ fun ProfileRoute(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = contentTopPadding / 2) // 靠右但不撞齒輪
+                    modifier = Modifier.padding(end = contentTopPadding / 2)
                 ) {
                     StatItem(title = "運動紀錄", value = recentActivities.size.toString())
-                    StatItem(title = "總時間", value = totalMinutes.toString()) // 不加「分」
+                    StatItem(title = "總時間", value = totalMinutes.toString())
                     StatItem(title = "連續運動", value = streakDays.toString())
                 }
             }
 
-            // 暱稱 / 自介
             Column(
                 horizontalAlignment = Alignment.Start,
                 modifier = Modifier.fillMaxWidth()
@@ -156,10 +131,9 @@ fun ProfileRoute(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Divider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 最近運動
             Text(
                 text = "最近運動",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -207,9 +181,9 @@ fun ProfileRoute(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 登出
+            // 登出按鈕 — 改成只呼叫 signOut()
             Button(
-                onClick = onLogout,
+                onClick = { Firebase.auth.signOut() },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -219,12 +193,12 @@ fun ProfileRoute(
             }
         }
 
-        // 右上角齒輪：提高 zIndex，確保可點
+        // 右上角設定按鈕
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .size(gearSize)
+                .size(28.dp)
                 .zIndex(2f)
         ) {
             Icon(
@@ -235,7 +209,7 @@ fun ProfileRoute(
         }
     }
 
-    // ===== 設定 BottomSheet：動態漸層 + 玻璃質感，與全站一致 =====
+    // 下方設定面板
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },
@@ -248,10 +222,8 @@ fun ProfileRoute(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                // 動態漸層背景
                 AnimatedGradientBackground(modifier = Modifier.matchParentSize())
 
-                // 霧面覆層 + 圓角
                 Surface(
                     color = Color.White.copy(alpha = 0.28f),
                     tonalElevation = 0.dp,
@@ -260,7 +232,6 @@ fun ProfileRoute(
                     modifier = Modifier.matchParentSize()
                 ) {}
 
-                // 內容
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -273,13 +244,24 @@ fun ProfileRoute(
                         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                     )
 
-                    SettingRow("帳號與安全", Icons.Rounded.Lock) { /* TODO */ }
-                    SettingRow("通知偏好", Icons.Rounded.Notifications) { /* TODO */ }
-                    SettingRow("隱私與可見度", Icons.Rounded.PrivacyTip) { /* TODO */ }
-                    SettingRow("主題", Icons.Rounded.DarkMode) { /* TODO */ }
-                    SettingRow("關於我們", Icons.Rounded.Info) { /* TODO */ }
+                    SettingRow("帳號與安全", Icons.Rounded.Lock) {
+                        outerNavController.navigate(Routes.ACCOUNT)
+                    }
+                    SettingRow("通知偏好", Icons.Rounded.Notifications) {
+                        outerNavController.navigate(Routes.NOTIFY)
+                    }
+                    SettingRow("隱私與可見度", Icons.Rounded.Visibility) {
+                        outerNavController.navigate(Routes.PRIVACY)
+                    }
+                    SettingRow("關於我們", Icons.Rounded.Info) {
+                        outerNavController.navigate(Routes.ABOUT)
+                    }
+                    SettingRow("登出", Icons.Rounded.Logout) {
+                        showSettingsSheet = false
+                        Firebase.auth.signOut()
+                    }
 
-                    Spacer(Modifier.height(6.dp)) // 沒有「關閉」按鈕；用下滑或點外面關閉
+                    Spacer(Modifier.height(6.dp))
                 }
             }
         }
@@ -330,7 +312,7 @@ private fun SettingRow(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint)
+            Icon(imageVector = icon, contentDescription = null, tint = iconTint)
             Spacer(Modifier.width(12.dp))
             Text(
                 text = title,
@@ -342,7 +324,6 @@ private fun SettingRow(
     }
 }
 
-/* ===== 共用：動態漸層背景（與登入/首頁一致） ===== */
 @Composable
 private fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
@@ -365,14 +346,14 @@ private fun AnimatedGradientBackground(
     )
     val t = (1f - kotlin.math.cos(tRaw * Math.PI).toFloat()) / 2f
     val c1 = lerp(aStart, bStart, t)
-    val c2 = lerp(aMid,   bMid,   t)
-    val c3 = lerp(aEnd,   bEnd,   t)
+    val c2 = lerp(aMid, bMid, t)
+    val c3 = lerp(aEnd, bEnd, t)
 
     Box(
         modifier = modifier.drawBehind {
-            val sx = size.width  * (0.15f + 0.35f * t)
+            val sx = size.width * (0.15f + 0.35f * t)
             val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width  * (0.85f - 0.35f * t)
+            val ex = size.width * (0.85f - 0.35f * t)
             val ey = size.height * (0.90f - 0.25f * (1f - t))
             drawRect(
                 brush = Brush.linearGradient(
