@@ -5,7 +5,6 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -38,7 +37,6 @@ import com.example.amicitia.nav.Routes
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +59,7 @@ fun ProfileRoute(
     val gearMargin = 12.dp
     val contentTopPadding = gearSize + gearMargin * 2 // ≈ 52.dp
 
+    // 讀取使用者資料
     LaunchedEffect(user?.uid) {
         user?.uid?.let { uid ->
             Firebase.firestore.collection("users").document(uid).get()
@@ -75,6 +74,7 @@ fun ProfileRoute(
         }
     }
 
+    // ————————————— UI —————————————
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -131,10 +131,7 @@ fun ProfileRoute(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            )
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
@@ -185,7 +182,6 @@ fun ProfileRoute(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
-        // 右上角設定按鈕
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -201,7 +197,6 @@ fun ProfileRoute(
         }
     }
 
-    // 下方設定面板
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },
@@ -248,16 +243,9 @@ fun ProfileRoute(
                     SettingRow("關於我們", Icons.Rounded.Info) {
                         outerNavController.navigate(Routes.ABOUT)
                     }
-                    val scope = rememberCoroutineScope()
                     SettingRow("登出", Icons.Rounded.Logout) {
-                        scope.launch {
-                            showSettingsSheet = false
-                            Firebase.auth.signOut()
-                            outerNavController.navigate(Routes.LOGIN) {
-                                popUpTo(outerNavController.graph.findStartDestination().id) { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        }
+                        showSettingsSheet = false
+                        Firebase.auth.signOut()
                     }
 
                     Spacer(Modifier.height(6.dp))

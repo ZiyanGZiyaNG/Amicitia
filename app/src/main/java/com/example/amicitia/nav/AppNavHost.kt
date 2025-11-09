@@ -10,7 +10,7 @@ import androidx.navigation.navArgument
 import com.example.amicitia.ui.login.LoginScreen
 import com.example.amicitia.ui.menu.MenuScreen
 import com.example.amicitia.ui.menu.chat.ChatRoomScreen
-import com.example.amicitia.ui.menu.profile.settings.AboutusScreem
+import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
 import com.example.amicitia.ui.register.RegisterScreen
 import com.example.amicitia.ui.menu.profile.settings.AccountScreen
 import com.example.amicitia.ui.menu.profile.settings.NotifyScree
@@ -67,7 +67,7 @@ fun AppNavHost(
         composable(Routes.ACCOUNT)  { AccountScreen(navController) }
         composable(Routes.NOTIFY)   { NotifyScree(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
-        composable(Routes.ABOUT)    { AboutusScreem(navController) }
+        composable(Routes.ABOUT)    { AboutUsScreen(navController) }
 
         // 聊天室
         composable(
