@@ -96,10 +96,10 @@ fun AboutUsScreen(
                 }
 
                 val members = listOf(
-                    DevMember("Ziyang", "在黑客松主要負責 BackEnd & Database，也是Android 的主要開發者", R.drawable.ziyang),
-                    DevMember("Yuki", "地圖與路線規劃、UI 微互動", R.drawable.ziyang),
-                    DevMember("Rex", "Firebase Auth / Firestore 結構設計", R.drawable.ziyang),
-                    DevMember("Mina", "通知系統與任務排程", R.drawable.ziyang),
+                    DevMember("Ziyang", "主導手機軟題化的人。哈哈屁眼", R.drawable.ziyang),
+                    DevMember("泥巴", "你說得對，但是你說的也不完全對。從某種角度來說，你說的有一點對，可是從另一個角度看，你說得不對。也不能說是完全不對，只能說離完全對之間還有一點不對。如果忽略這點不對，那你說的當然是對的，可是以一個更嚴謹的態度去審視你說的對不對，那麼你說的又不是對的了。 ", R.drawable.dirt),
+                    DevMember("Jason", "《關於我這隻Sb綠豬可能要脫單這件事》團隊主輔 vibe coder +一個完全不稱職的隊長", R.drawable.json),
+                    DevMember("Mina", "(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(爬行))扭動)(分裂)(陰暗地蠕動)", R.drawable.ziyang),
                     DevMember("Leo", "效能優化、動畫與可用性測試", R.drawable.ziyang),
                     DevMember("Iris", "文件、README 與 CI 配置", R.drawable.ziyang),
                     DevMember("Ken", "NavHost 架構與模組化", R.drawable.ziyang),

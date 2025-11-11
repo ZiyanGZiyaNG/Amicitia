@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 
 @Composable
-fun NotifyScree(
+fun NotifyScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     onSportSelected: (String) -> Unit = {}

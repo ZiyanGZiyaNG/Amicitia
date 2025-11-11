@@ -13,7 +13,7 @@ import com.example.amicitia.ui.menu.chat.ChatRoomScreen
 import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
 import com.example.amicitia.ui.register.RegisterScreen
 import com.example.amicitia.ui.menu.profile.settings.AccountScreen
-import com.example.amicitia.ui.menu.profile.settings.NotifyScree
+import com.example.amicitia.ui.menu.profile.settings.NotifyScreen
 import com.example.amicitia.ui.menu.profile.settings.PrivacyScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
@@ -65,7 +65,7 @@ fun AppNavHost(
 
         // Profile → 設定面板外層頁面
         composable(Routes.ACCOUNT)  { AccountScreen(navController) }
-        composable(Routes.NOTIFY)   { NotifyScree(navController) }
+        composable(Routes.NOTIFY)   { NotifyScreen(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
         composable(Routes.ABOUT)    { AboutUsScreen(navController) }
 
