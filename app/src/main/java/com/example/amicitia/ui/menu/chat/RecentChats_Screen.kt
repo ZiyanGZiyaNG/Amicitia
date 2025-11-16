@@ -17,9 +17,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+
 private val ChatPrimaryBlue = Color(0xFF3F51B5)
-private val ChatBackground = Color(0xFFEFF3FF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,39 +29,62 @@ fun RecentChatsScreen(
     onOpenChat: (peerId: String, peerName: String) -> Unit,
     onSearchClick: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("最近聊天") },
-                actions = {
-                    IconButton(onClick = onSearchClick) {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = "搜尋使用者",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = ChatPrimaryBlue,
-                    titleContentColor = Color.White,
-                    actionIconContentColor = Color.White
+    Box(modifier = Modifier.fillMaxSize()) {
+        // ✅ 使用與聊天室一致的漸層背景
+        SoftGradientBackground(modifier = Modifier.fillMaxSize())
+
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("最近聊天") },
+                    actions = {
+                        IconButton(onClick = onSearchClick) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "搜尋使用者",
+                                tint = ChatPrimaryBlue
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        titleContentColor = ChatPrimaryBlue,
+                        actionIconContentColor = ChatPrimaryBlue
+                    )
                 )
-            )
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(ChatBackground)
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "目前沒有聊天紀錄",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF64748B)
-            )
+            },
+            containerColor = Color.Transparent
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "目前沒有聊天紀錄",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF64748B)
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun SoftGradientBackground(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.background(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFF4F6FF),
+                    Color(0xFFE7EEFF),
+                    Color(0xFFDCE6FF)
+                )
+            )
+        )
+    )
 }

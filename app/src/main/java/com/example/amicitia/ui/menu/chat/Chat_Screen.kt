@@ -1,12 +1,6 @@
 package com.example.amicitia.ui.menu.chat
 
 import android.util.Log
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,11 +41,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.ktx.auth
@@ -60,8 +51,6 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.math.PI
-import kotlin.math.cos
 
 private val RoomPrimaryBlue = Color(0xFF3F51B5)
 
@@ -96,6 +85,7 @@ fun ChatRoomScreen(
     val scope = rememberCoroutineScope()
     val chatId = remember(me?.uid, peerId) { buildChatId(me?.uid ?: "", peerId) }
 
+    // 監聽訊息
     DisposableEffect(chatId) {
         val ref = db.collection("chats")
             .document(chatId)
@@ -149,10 +139,10 @@ fun ChatRoomScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+        // ✅ 跟個人頁一樣的整片柔和漸層背景
+        SoftGradientBackground(modifier = Modifier.fillMaxSize())
 
         Scaffold(
             topBar = {
@@ -175,6 +165,7 @@ fun ChatRoomScreen(
                     )
                 )
             },
+            // ✅ Scaffold 本身也透明，不再多一層實色底
             containerColor = Color.Transparent
         ) { padding ->
             Column(
@@ -197,10 +188,11 @@ fun ChatRoomScreen(
                     }
                 }
 
+                // ✅ 輸入列不要再整條實色，只是微透明白
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.2f))
+                        .background(Color.White.copy(alpha = 0.10f))
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -214,11 +206,11 @@ fun ChatRoomScreen(
                         maxLines = 3,
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.95f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.85f),
-                            disabledContainerColor = Color.White.copy(alpha = 0.6f),
+                            focusedContainerColor = Color.White.copy(alpha = 0.96f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.9f),
+                            disabledContainerColor = Color.White.copy(alpha = 0.7f),
                             focusedBorderColor = RoomPrimaryBlue.copy(alpha = 0.7f),
-                            unfocusedBorderColor = RoomPrimaryBlue.copy(alpha = 0.4f),
+                            unfocusedBorderColor = RoomPrimaryBlue.copy(alpha = 0.35f),
                             cursorColor = RoomPrimaryBlue
                         )
                     )
@@ -275,44 +267,20 @@ private fun buildChatId(a: String, b: String): String {
     return listOf(a, b).sorted().joinToString("_")
 }
 
+// ✅ 靜態柔和漸層，跟個人頁一樣整片延伸，不會有上下兩條實色
 @Composable
-private fun AnimatedGradientBackground(
-    modifier: Modifier = Modifier,
-    aStart: Color = Color(0xFFF3F6FF),
-    aMid:   Color = Color(0xFFEAF1FF),
-    aEnd:   Color = Color(0xFFDDE7FF),
-    bStart: Color = Color(0xFFE8F0FF),
-    bMid:   Color = Color(0xFFD6E3FF),
-    bEnd:   Color = Color(0xFFCBD9FF),
-    durationMs: Int = 4000
+private fun SoftGradientBackground(
+    modifier: Modifier = Modifier
 ) {
-    val infinite = rememberInfiniteTransition()
-    val tRaw by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMs, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-    val t = (1f - cos(tRaw * PI).toFloat()) / 2f
-    val c1 = lerp(aStart, bStart, t)
-    val c2 = lerp(aMid, bMid, t)
-    val c3 = lerp(aEnd, bEnd, t)
-
     Box(
-        modifier = modifier.drawBehind {
-            val sx = size.width * (0.15f + 0.35f * t)
-            val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width * (0.85f - 0.35f * t)
-            val ey = size.height * (0.90f - 0.25f * (1f - t))
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(c1, c2, c3),
-                    start = Offset(sx, sy),
-                    end = Offset(ex, ey)
+        modifier = modifier.background(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFF4F6FF),
+                    Color(0xFFE7EEFF),
+                    Color(0xFFDCE6FF)
                 )
             )
-        }
+        )
     )
 }
