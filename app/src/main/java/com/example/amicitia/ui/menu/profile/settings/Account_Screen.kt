@@ -35,7 +35,6 @@ fun AccountScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
-    // 統一色票
     val Primary = Color(0xFF3F51B5)
     val PrimaryContainer = Color(0xFFE8EBFF)
     val Danger = MaterialTheme.colorScheme.error

@@ -36,13 +36,10 @@ import androidx.compose.ui.platform.LocalContext
 fun NotifyScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    onSportSelected: (String) -> Unit = {}
 ) {
     val auth = remember { FirebaseAuth.getInstance() }
     val db = remember { FirebaseFirestore.getInstance() }
     val uid = auth.currentUser?.uid
-
-    // 主題色與外觀：沿用 PrivacyScreen
     val mainButtonColor = Color(0xFF3F51B5)
     val lightBorderColor = Color(0xFF3F51B5)
 

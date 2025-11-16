@@ -14,13 +14,26 @@ fun ChatRoute() {
 
     NavHost(
         navController = chatNav,
-        startDestination = "chat_list"
+        startDestination = "recent_chats"
     ) {
-        composable("chat_list") {
-            ChatListScreen(
-                onChatSelected = { friend ->
-                    val encodedName = Uri.encode(friend.name)
-                    chatNav.navigate("chat_room/${friend.id}/$encodedName")
+        composable("recent_chats") {
+            RecentChatsScreen(
+                onOpenChat = { peerId, peerName ->
+                    val encodedName = Uri.encode(peerName)
+                    chatNav.navigate("chat_room/$peerId/$encodedName")
+                },
+                onSearchClick = {
+                    chatNav.navigate("search_user")
+                }
+            )
+        }
+
+        composable("search_user") {
+            SearchUserScreen(
+                onBack = { chatNav.popBackStack() },
+                onOpenChat = { peerId, peerName ->
+                    val encodedName = Uri.encode(peerName)
+                    chatNav.navigate("chat_room/$peerId/$encodedName")
                 }
             )
         }
@@ -31,14 +44,14 @@ fun ChatRoute() {
                 navArgument("peerId") { type = NavType.StringType },
                 navArgument("peerName") { type = NavType.StringType }
             )
-        ) { entry ->
-            val id = entry.arguments?.getString("peerId") ?: ""
-            val encoded = entry.arguments?.getString("peerName") ?: ""
-            val name = Uri.decode(encoded)
+        ) { backStackEntry ->
+            val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
+            val encodedName = backStackEntry.arguments?.getString("peerName") ?: ""
+            val peerName = Uri.decode(encodedName)
 
             ChatRoomScreen(
-                peerId = id,
-                peerName = name,
+                peerId = peerId,
+                peerName = peerName,
                 onBack = { chatNav.popBackStack() }
             )
         }

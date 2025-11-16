@@ -23,7 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import kotlin.math.PI
 import kotlin.math.cos
 import com.example.amicitia.R
@@ -31,8 +31,8 @@ import com.example.amicitia.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutUsScreen(
-    navController: NavController,
-    modifier: Modifier = Modifier
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
