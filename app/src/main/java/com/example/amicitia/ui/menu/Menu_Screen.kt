@@ -2,6 +2,7 @@ package com.example.amicitia.ui.menu
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -17,23 +18,22 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -50,12 +50,9 @@ import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.firestore.ktx.firestore
-import androidx.compose.ui.geometry.Offset
+import com.google.firebase.ktx.Firebase
 import kotlin.math.cos
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.ui.graphics.graphicsLayer
 
 private val PrimaryBlue = Color(0xFF3F51B5)
 
@@ -123,7 +120,6 @@ fun MenuScreen(
         if (uid != null) PresenceManager(uid, db) else null
     }
 
-    // 與畫面生命週期綁定 Presence
     DisposableEffect(uid) {
         presenceManager?.start()
         onDispose { presenceManager?.stop() }
@@ -182,13 +178,7 @@ private fun MenuNavHost(
             MapRoute()
         }
         composable(MenuTabs.CHAT) {
-            ChatRoute(
-                onOpenChat = { otherUid ->
-                    outerNavController.navigate("chat_room/$otherUid") {
-                        launchSingleTop = true
-                    }
-                }
-            )
+            ChatRoute()
         }
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
@@ -292,11 +282,10 @@ private fun AnimatedIcon(
     androidx.compose.material3.Icon(
         imageVector = icon,
         contentDescription = contentDescription,
-        modifier = Modifier
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale
-            ),
+        modifier = Modifier.graphicsLayer(
+            scaleX = scale,
+            scaleY = scale
+        ),
         tint = if (selected) PrimaryBlue else Color(0xFF64748B)
     )
 }

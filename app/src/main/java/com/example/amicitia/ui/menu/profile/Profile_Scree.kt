@@ -178,20 +178,8 @@ fun ProfileRoute(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-
-            // 登出按鈕 — 改成只呼叫 signOut()
-            Button(
-                onClick = { Firebase.auth.signOut() },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Text("登出", color = Color.White, style = MaterialTheme.typography.bodyLarge)
-            }
         }
 
-        // 右上角設定按鈕
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -208,7 +196,6 @@ fun ProfileRoute(
         }
     }
 
-    // 下方設定面板
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },

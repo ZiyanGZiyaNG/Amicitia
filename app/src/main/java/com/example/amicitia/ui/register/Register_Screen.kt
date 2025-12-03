@@ -150,20 +150,21 @@ fun RegisterScreen(navController: NavController) {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: error("User is null")
 
-            // 1) 寫入 Auth.displayName
             val profile = UserProfileChangeRequest.Builder()
                 .setDisplayName(nickname)
                 .build()
             user.updateProfile(profile).await()
 
-            // 2) 寫入 Firestore: users/{uid}
             val db = Firebase.firestore
             val doc = mapOf(
                 "uid" to user.uid,
                 "email" to (user.email ?: email),
                 "nickname" to nickname,
+                "avatarUrl" to "",
                 "bio" to "",
-                "recentActivities" to emptyList<String>(),
+                "showOnline" to true,
+                "profileVisibility" to "public",
+                "lastOnline" to FieldValue.serverTimestamp(),
                 "createdAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
@@ -171,7 +172,6 @@ fun RegisterScreen(navController: NavController) {
                 .set(doc, SetOptions.merge())
                 .await()
 
-            // 3) 寄驗證信（可保留）
             user.sendEmailVerification().await()
 
             snackbarHostState.showSnackbar("註冊成功！已寫入暱稱，請查收驗證信。")
