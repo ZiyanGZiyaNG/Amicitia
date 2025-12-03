@@ -1,100 +1,90 @@
 package com.example.amicitia.ui.menu.chat
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.google.firebase.Timestamp
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
-import java.text.SimpleDateFormat
-import java.util.Locale
 
-data class ChatSummary(
-    val chatId: String = "",
-    val participants: List<String> = emptyList(),
-    val lastMessage: String? = null,
-    val updatedAt: Timestamp? = null
-)
+private val ChatPrimaryBlue = Color(0xFF3F51B5)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentChatsScreen(
-    onOpenChat: (otherUid: String) -> Unit
+    onOpenChat: (peerId: String, peerName: String) -> Unit,
+    onSearchClick: () -> Unit
 ) {
-    val myUid = Firebase.auth.currentUser?.uid
-    val db = Firebase.firestore
-    var chats by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // ✅ 使用與聊天室一致的漸層背景
+        SoftGradientBackground(modifier = Modifier.fillMaxSize())
 
-    DisposableEffect(myUid) {
-        if (myUid == null) return@DisposableEffect onDispose { }
-        val reg = db.collection("chats")
-            .whereArrayContains("participants", myUid)
-            .orderBy("updatedAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                chats = snapshot?.documents?.map { d ->
-                    ChatSummary(
-                        chatId = d.id,
-                        participants = (d.get("participants") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        lastMessage = d.getString("lastMessage"),
-                        updatedAt = d.getTimestamp("updatedAt")
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("最近聊天") },
+                    actions = {
+                        IconButton(onClick = onSearchClick) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "搜尋使用者",
+                                tint = ChatPrimaryBlue
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        titleContentColor = ChatPrimaryBlue,
+                        actionIconContentColor = ChatPrimaryBlue
                     )
-                } ?: emptyList()
-            }
-        onDispose { reg.remove() }
-    }
-
-    Column(Modifier.fillMaxSize().padding(12.dp)) {
-        Text("最近聊天", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
-
-        if (chats.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("目前沒有聊天紀錄")
-            }
-        } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(chats) { chat ->
-                    val otherUid = chat.participants.firstOrNull { it != myUid } ?: "Unknown"
-                    ChatRowItem(
-                        title = otherUid, // 先顯示 uid，後面再換暱稱
-                        preview = chat.lastMessage ?: "",
-                        time = chat.updatedAt.toReadableTime(),
-                        onClick = { onOpenChat(otherUid) }
-                    )
-                    Divider()
-                }
+                )
+            },
+            containerColor = Color.Transparent
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "目前沒有聊天紀錄",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF64748B)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ChatRowItem(
-    title: String,
-    preview: String,
-    time: String?,
-    onClick: () -> Unit
+private fun SoftGradientBackground(
+    modifier: Modifier = Modifier
 ) {
-    ListItem(
-        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(preview, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        trailingContent = { if (!time.isNullOrEmpty()) Text(time, style = MaterialTheme.typography.labelSmall) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+    Box(
+        modifier = modifier.background(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFF4F6FF),
+                    Color(0xFFE7EEFF),
+                    Color(0xFFDCE6FF)
+                )
+            )
+        )
     )
-}
-
-private fun Timestamp?.toReadableTime(): String? {
-    this ?: return null
-    val sdf = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-    return sdf.format(this.toDate())
 }

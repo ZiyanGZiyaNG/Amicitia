@@ -59,7 +59,6 @@ fun ProfileRoute(
     val gearMargin = 12.dp
     val contentTopPadding = gearSize + gearMargin * 2 // ≈ 52.dp
 
-    // 讀取使用者資料
     LaunchedEffect(user?.uid) {
         user?.uid?.let { uid ->
             Firebase.firestore.collection("users").document(uid).get()
@@ -74,7 +73,6 @@ fun ProfileRoute(
         }
     }
 
-    // ————————————— UI —————————————
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -204,7 +202,8 @@ fun ProfileRoute(
             Icon(
                 imageVector = Icons.Rounded.Settings,
                 contentDescription = "設定",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
             )
         }
     }

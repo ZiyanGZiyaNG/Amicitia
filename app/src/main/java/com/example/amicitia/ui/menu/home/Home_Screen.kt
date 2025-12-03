@@ -1,18 +1,44 @@
 package com.example.amicitia.ui.menu.home
-//
-import androidx.compose.foundation.layout.*
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.SportsBasketball
+import androidx.compose.material.icons.rounded.SportsHandball
+import androidx.compose.material.icons.rounded.SportsSoccer
+import androidx.compose.material.icons.rounded.SportsTennis
+import androidx.compose.material.icons.rounded.SportsVolleyball
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+import com.example.amicitia.R
+import com.example.amicitia.SportStats
+import com.example.amicitia.SportsRepository
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun HomeRoute(
@@ -25,20 +51,19 @@ fun HomeRoute(
     )
 }
 
-
 private data class SportItem(
-    val key: String,
-    val icon: ImageVector,
+    val key: String,          // Firestore document id
+    val icon: ImageVector,    // 預設 icon（badminton 另處理）
     val label: String
 )
 
 private val sports = listOf(
-    SportItem("tennis", Icons.Outlined.SportsTennis, "網球"),
-    SportItem("run", Icons.Outlined.DirectionsRun, "跑步"),
-    SportItem("basketball", Icons.Outlined.SportsBasketball, "籃球"),
-    SportItem("soccer", Icons.Outlined.SportsSoccer, "足球"),
-    SportItem("volleyball", Icons.Outlined.SportsVolleyball, "排球"),
-    SportItem("badminton", Icons.Outlined.SportsHandball, "羽球")
+    SportItem("tennis", Icons.Rounded.SportsTennis, "網球"),
+    SportItem("run", Icons.Rounded.DirectionsRun, "跑步"),
+    SportItem("basketball", Icons.Rounded.SportsBasketball, "籃球"),
+    SportItem("soccer", Icons.Rounded.SportsSoccer, "足球"),
+    SportItem("volleyball", Icons.Rounded.SportsVolleyball, "排球"),
+    SportItem("badminton", Icons.Rounded.SportsHandball, "羽球")
 )
 
 @Composable
@@ -46,7 +71,21 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onSportSelected: (String) -> Unit = {}
 ) {
-    val chunked = remember { sports.chunked(3) }
+    val repo = remember { SportsRepository() }
+    val auth = Firebase.auth
+
+    var statsMap by remember { mutableStateOf<Map<String, SportStats>>(emptyMap()) }
+
+    // 進入畫面時讀取所有運動分數
+    LaunchedEffect(auth.currentUser?.uid) {
+        val uid = auth.currentUser?.uid ?: return@LaunchedEffect
+        val result = mutableMapOf<String, SportStats>()
+        for (sport in sports) {
+            val stat = repo.getSportStats(uid, sport.key)
+            result[sport.key] = stat
+        }
+        statsMap = result
+    }
 
     Column(
         modifier = modifier
@@ -61,64 +100,77 @@ fun HomeScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        Box(
+        // 下面這整塊平均填滿整個畫面
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                chunked.forEach { rowItems ->
+            sports.forEachIndexed { index, sport ->
+                val stats = statsMap[sport.key]
+                val score = stats?.totalScore ?: 1000.0
+
+                ElevatedCard(
+                    onClick = { onSportSelected(sport.key) },
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = Color(0xFFF7F7FA)
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        rowItems.forEach { sport ->
-                            ElevatedCard(
-                                onClick = { onSportSelected(sport.key) },
-                                colors = CardDefaults.elevatedCardColors(
-                                    containerColor = Color(0xFFF7F7FA)
-                                ),
-                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(10.dp),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        imageVector = sport.icon,
-                                        contentDescription = sport.label,
-                                        modifier = Modifier.size(36.dp),
-                                        tint = Color(0xFF222222)
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = sport.label,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color(0xFF222222)
-                                    )
-                                }
+                        // 左邊：icon + 運動名稱
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            if (sport.key == "badminton") {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.badminton),
+                                    contentDescription = sport.label,
+                                    modifier = Modifier.size(38.dp),
+                                    tint = Color.Unspecified
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = sport.icon,
+                                    contentDescription = sport.label,
+                                    modifier = Modifier.size(38.dp),
+                                    tint = Color(0xFF222222)
+                                )
                             }
-                        }
 
-                        repeat(3 - rowItems.size) {
-                            Spacer(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
+                            Text(
+                                text = sport.label,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color(0xFF222222)
                             )
                         }
+
+                        // 右邊：分數
+                        Text(
+                            text = "分數 ${score.toInt()}",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize * 1.05f
+                            ),
+                            color = Color(0xFF64748B)
+                        )
                     }
+                }
+
+                // 卡片之間的間距（最後一張就不要）
+                if (index < sports.lastIndex) {
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
