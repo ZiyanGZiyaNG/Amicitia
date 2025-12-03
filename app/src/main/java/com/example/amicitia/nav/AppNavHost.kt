@@ -7,11 +7,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.amicitia.ui.login.LoginScreen
 import com.example.amicitia.ui.menu.MenuScreen
-import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
-import com.example.amicitia.ui.register.RegisterScreen
 import com.example.amicitia.ui.menu.profile.settings.AccountScreen
 import com.example.amicitia.ui.menu.profile.settings.NotifyScreen
 import com.example.amicitia.ui.menu.profile.settings.PrivacyScreen
+import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
+import com.example.amicitia.ui.register.RegisterScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -32,8 +32,10 @@ fun AppNavHost(
     navController: NavHostController
 ) {
     val auth = Firebase.auth
+
     val start = if (auth.currentUser == null) Routes.LOGIN else Routes.MENU
 
+    // Firebase Auth 狀態監聽
     DisposableEffect(auth, navController) {
         val listener = FirebaseAuth.AuthStateListener { a ->
             val to = if (a.currentUser == null) Routes.LOGIN else Routes.MENU
@@ -50,14 +52,14 @@ fun AppNavHost(
         navController = navController,
         startDestination = start
     ) {
-        // login & register
+        // 登入與註冊
         composable(Routes.LOGIN)    { LoginScreen(navController) }
         composable(Routes.REGISTER) { RegisterScreen(navController) }
 
-        // 主選單（裡面含 HOME / MAP / CHAT / PROFILE）
+        // 主選單
         composable(Routes.MENU)     { MenuScreen(outerNavController = navController) }
 
-        // profile settings
+        // Profile / Settings
         composable(Routes.ACCOUNT)  { AccountScreen(navController) }
         composable(Routes.NOTIFY)   { NotifyScreen(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
