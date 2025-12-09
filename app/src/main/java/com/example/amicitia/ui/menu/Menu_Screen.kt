@@ -148,7 +148,8 @@ fun MenuScreen(
             MenuNavHost(
                 navController = innerNav,
                 outerNavController = outerNavController,
-                modifier = Modifier.padding(innerPadding),
+                modifier = Modifier
+                    .padding(innerPadding),   // 只吃 Scaffold 的內距，不再自己加上下 padding
                 onLogout = handleLogout
             )
         }

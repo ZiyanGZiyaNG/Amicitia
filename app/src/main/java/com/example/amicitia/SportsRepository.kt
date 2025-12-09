@@ -14,12 +14,40 @@ class SportsRepository(
             .collection("sports")
             .document(sportKey)
 
+    suspend fun ensureAllSportsExist(uid: String) {
+        val keys = listOf(
+            "tennis",
+            "run",
+            "basketball",
+            "football",
+            "volleyball",
+            "badminton"
+        )
+
+        for (key in keys) {
+            val docRef = sportDoc(uid, key)
+            val snap = docRef.get().await()
+
+            if (!snap.exists() || snap.data.isNullOrEmpty()) {
+                val default = SportStats()
+                docRef.set(
+                    mapOf(
+                        "activityScore" to default.activityScore,
+                        "skillRating" to default.skillRating,
+                        "totalScore" to default.totalScore
+                    )
+                ).await()
+            }
+        }
+    }
+
     suspend fun getSportStats(uid: String, sportKey: String): SportStats {
         return try {
             val snap = sportDoc(uid, sportKey).get().await()
 
-            if (!snap.exists()) {
-                // 不存在就建立預設值
+            val isEmpty = !snap.exists() || snap.data.isNullOrEmpty()
+
+            if (isEmpty) {
                 val default = SportStats()
                 sportDoc(uid, sportKey).set(
                     mapOf(
@@ -30,28 +58,25 @@ class SportsRepository(
                 ).await()
                 default
             } else {
-                // 比起 toObject()，我們自己一個欄位一個欄位讀，避免型別炸掉
-                val activity = snap.getDouble("activityScore")
-                    ?: snap.getLong("activityScore")?.toDouble()
-                    ?: 0.0
+                val data = snap.data ?: emptyMap<String, Any>()
 
-                val skill = snap.getDouble("skillRating")
-                    ?: snap.getLong("skillRating")?.toDouble()
-                    ?: 1000.0
-
-                val total = snap.getDouble("totalScore")
-                    ?: snap.getLong("totalScore")?.toDouble()
-                    ?: (skill + activity)
+                fun getNumber(key: String, default: Double): Double {
+                    val v = data[key]
+                    return when (v) {
+                        is Number -> v.toDouble()
+                        else -> default
+                    }
+                }
 
                 SportStats(
-                    activityScore = activity,
-                    skillRating = skill,
-                    totalScore = total
+                    activityScore = getNumber("activityScore", 0.0),
+                    skillRating = getNumber("skillRating", 1000.0),
+                    totalScore = getNumber("totalScore", 1000.0)
                 )
             }
         } catch (e: Exception) {
             Log.e("SportsRepository", "getSportStats failed", e)
-            SportStats()   // 爆掉就回傳預設，不要讓 app 掛掉
+            SportStats()
         }
     }
 
