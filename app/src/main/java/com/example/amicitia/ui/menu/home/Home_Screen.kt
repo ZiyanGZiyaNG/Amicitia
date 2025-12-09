@@ -57,9 +57,6 @@ fun HomeRoute(
         SportMeta("badminton", "羽球", painterResource(R.drawable.ic_badminton))
     )
 
-    // 一進 Home：
-    // 1. 先確保六種運動的 document 都存在
-    // 2. 把每種運動的 SportStats 從 Firestore 抓回來
     LaunchedEffect(uid) {
         uid ?: return@LaunchedEffect
 
@@ -99,7 +96,6 @@ fun HomeRoute(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(sports) { sport ->
-                // ⭐ 這行就是從 Firebase 抓回來的 totalScore
                 val score = statsMap[sport.key]?.totalScore?.toInt() ?: 1000
 
                 SportCard(

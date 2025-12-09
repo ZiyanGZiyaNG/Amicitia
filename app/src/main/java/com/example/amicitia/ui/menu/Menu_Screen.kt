@@ -2,16 +2,15 @@ package com.example.amicitia.ui.menu
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -47,12 +46,16 @@ import com.example.amicitia.nav.Routes
 import com.example.amicitia.presence.PresenceManager
 import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
+import com.example.amicitia.ui.menu.home.run.RunModeScreen
+import com.example.amicitia.ui.menu.home.run.SoloRunScreen
+import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlin.math.cos
+import androidx.compose.animation.core.animateFloat
 
 private val PrimaryBlue = Color(0xFF3F51B5)
 
@@ -148,8 +151,7 @@ fun MenuScreen(
             MenuNavHost(
                 navController = innerNav,
                 outerNavController = outerNavController,
-                modifier = Modifier
-                    .padding(innerPadding),   // 只吃 Scaffold 的內距，不再自己加上下 padding
+                modifier = Modifier.padding(innerPadding),
                 onLogout = handleLogout
             )
         }
@@ -171,10 +173,14 @@ private fun MenuNavHost(
         composable(MenuTabs.HOME) {
             HomeRoute(
                 onSportSelected = { sportKey ->
-                    outerNavController.navigate("sport/$sportKey")
+                    when (sportKey) {
+                        "run" -> navController.navigate("run_mode")
+                        else  -> outerNavController.navigate("sport/$sportKey")
+                    }
                 }
             )
         }
+
         composable(MenuTabs.MAP) {
             MapRoute()
         }
@@ -186,6 +192,21 @@ private fun MenuNavHost(
                 outerNavController = outerNavController,
                 onLogout = onLogout,
             )
+        }
+
+        // 跑步模式選單
+        composable("run_mode") {
+            RunModeScreen(navController)
+        }
+
+        // 單人跑步
+        composable("run_solo") {
+            SoloRunScreen(navController)
+        }
+
+        // 多人跑步
+        composable("run_multi") {
+            MultiRunScreen(navController)
         }
     }
 }

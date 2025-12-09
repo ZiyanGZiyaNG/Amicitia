@@ -35,7 +35,6 @@ fun AppNavHost(
 
     val start = if (auth.currentUser == null) Routes.LOGIN else Routes.MENU
 
-    // Firebase Auth 狀態監聽
     DisposableEffect(auth, navController) {
         val listener = FirebaseAuth.AuthStateListener { a ->
             val to = if (a.currentUser == null) Routes.LOGIN else Routes.MENU
@@ -52,14 +51,11 @@ fun AppNavHost(
         navController = navController,
         startDestination = start
     ) {
-        // 登入與註冊
         composable(Routes.LOGIN)    { LoginScreen(navController) }
         composable(Routes.REGISTER) { RegisterScreen(navController) }
 
-        // 主選單
         composable(Routes.MENU)     { MenuScreen(outerNavController = navController) }
 
-        // Profile / Settings
         composable(Routes.ACCOUNT)  { AccountScreen(navController) }
         composable(Routes.NOTIFY)   { NotifyScreen(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
