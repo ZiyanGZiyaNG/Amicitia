@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -46,9 +47,9 @@ import com.example.amicitia.nav.Routes
 import com.example.amicitia.presence.PresenceManager
 import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
+import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
 import com.example.amicitia.ui.menu.home.run.SoloRunScreen
-import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
@@ -58,6 +59,8 @@ import kotlin.math.cos
 import androidx.compose.animation.core.animateFloat
 
 private val PrimaryBlue = Color(0xFF3F51B5)
+
+// ========= 背景動畫 =========
 
 @Composable
 private fun AnimatedGradientBackground(
@@ -78,6 +81,7 @@ private fun AnimatedGradientBackground(
             repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
         )
     )
+
     val t = (1f - cos(tRaw * Math.PI).toFloat()) / 2f
 
     val c1 = lerp(aStart, bStart, t)
@@ -102,12 +106,16 @@ private fun AnimatedGradientBackground(
     )
 }
 
+// ========= 內層 tabs route =========
+
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
     const val CHAT = "menu_chat"
     const val PROFILE = "menu_profile"
 }
+
+// ========= Menu 主畫面 =========
 
 @Composable
 fun MenuScreen(
@@ -158,6 +166,8 @@ fun MenuScreen(
     }
 }
 
+// ========= 內層 NavHost =========
+
 @Composable
 private fun MenuNavHost(
     navController: NavHostController,
@@ -175,7 +185,9 @@ private fun MenuNavHost(
                 onSportSelected = { sportKey ->
                     when (sportKey) {
                         "run" -> navController.navigate("run_mode")
-                        else  -> outerNavController.navigate("sport/$sportKey")
+                        else  -> {
+                            // 其他運動目前先不跳頁
+                        }
                     }
                 }
             )
@@ -184,9 +196,11 @@ private fun MenuNavHost(
         composable(MenuTabs.MAP) {
             MapRoute()
         }
+
         composable(MenuTabs.CHAT) {
             ChatRoute()
         }
+
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
                 outerNavController = outerNavController,
@@ -194,22 +208,21 @@ private fun MenuNavHost(
             )
         }
 
-        // 跑步模式選單
         composable("run_mode") {
             RunModeScreen(navController)
         }
 
-        // 單人跑步
         composable("run_solo") {
             SoloRunScreen(navController)
         }
 
-        // 多人跑步
         composable("run_multi") {
             MultiRunScreen(navController)
         }
     }
 }
+
+// ========= BottomBar 狀態 =========
 
 @Composable
 private fun currentRoute(navController: NavHostController): String? {
@@ -230,6 +243,8 @@ private val bottomItems = listOf(
     BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
+
+// ========= BottomBar 本體 =========
 
 @Composable
 private fun BottomBar(navController: NavHostController) {
@@ -259,12 +274,21 @@ private fun BottomBar(navController: NavHostController) {
                 NavigationBarItem(
                     selected = selected,
                     onClick = {
-                        navController.navigate(item.route) {
-                            launchSingleTop = true
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+                        if (item.route == MenuTabs.HOME) {
+                            // 關鍵：不管現在在 run_mode / run_solo / run_multi / 其他 tab
+                            // 一律把 stack 彈回 menu_home
+                            navController.popBackStack(
+                                route = MenuTabs.HOME,
+                                inclusive = false
+                            )
+                        } else {
+                            navController.navigate(item.route) {
+                                launchSingleTop = true
+                                popUpTo(MenuTabs.HOME) {
+                                    saveState = true
+                                }
+                                restoreState = true
                             }
-                            restoreState = true
                         }
                     },
                     icon = {
@@ -286,6 +310,8 @@ private fun BottomBar(navController: NavHostController) {
     }
 }
 
+// ========= Bottom icon 動畫 =========
+
 @Composable
 private fun AnimatedIcon(
     selected: Boolean,
@@ -301,7 +327,7 @@ private fun AnimatedIcon(
         label = "icon-scale"
     )
 
-    androidx.compose.material3.Icon(
+    Icon(
         imageVector = icon,
         contentDescription = contentDescription,
         modifier = Modifier.graphicsLayer(
