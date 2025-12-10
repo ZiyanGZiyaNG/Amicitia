@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.example.amicitia.R
@@ -57,7 +58,7 @@ fun ProfileRoute(
 
     val gearSize = 28.dp
     val gearMargin = 12.dp
-    val contentTopPadding = gearSize + gearMargin * 2 // ≈ 52.dp
+    val contentTopPadding = gearSize + gearMargin * 2
 
     LaunchedEffect(user?.uid) {
         user?.uid?.let { uid ->
@@ -85,6 +86,7 @@ fun ProfileRoute(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 頭像 + 統計
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -111,46 +113,62 @@ fun ProfileRoute(
                 }
             }
 
+            // 暱稱 + 自介
             Column(
                 horizontalAlignment = Alignment.Start,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = nickname ?: "未設定暱稱",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 22.sp
+                    ),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = bio.takeUnless { it.isNullOrBlank() } ?: "這位使用者還沒有自我介紹。",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 最近運動標題
             Text(
                 text = "最近運動",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp
+                ),
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.Start)
             )
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 最近運動內容 / 空狀態
             if (recentActivities.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
+                        .height(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "暫無運動紀錄",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp
+                        )
                     )
                 }
             } else {
@@ -168,7 +186,9 @@ fun ProfileRoute(
                         ) {
                             Text(
                                 text = activity,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 15.sp
+                                ),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(16.dp)
                             )
@@ -180,6 +200,7 @@ fun ProfileRoute(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
+        // 右上角設定 icon
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -196,6 +217,7 @@ fun ProfileRoute(
         }
     }
 
+    // 底部設定 Sheet
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },
@@ -225,7 +247,10 @@ fun ProfileRoute(
                 ) {
                     Text(
                         "設定",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp
+                        ),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                     )
@@ -259,13 +284,19 @@ private fun StatItem(title: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp
+            ),
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -302,7 +333,10 @@ private fun SettingRow(
             Spacer(Modifier.width(12.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                ),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.weight(1f))

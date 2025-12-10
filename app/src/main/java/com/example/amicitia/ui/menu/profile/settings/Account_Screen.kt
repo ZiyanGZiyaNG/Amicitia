@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -106,20 +107,35 @@ fun AccountScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("帳號與安全") },
+                    title = {
+                        Text(
+                            text = "帳號與安全",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 18.sp
+                            )
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         }
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
             },
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbar) }
         ) { innerPadding ->
             if (isLoading) {
-                Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(color = Primary)
                 }
             } else {
@@ -133,9 +149,24 @@ fun AccountScreen(
                 ) {
                     // A) 帳號資訊
                     AccountSettingCard(title = "帳號資訊") {
-                        Text("Email：$email")
-                        val statusColor = if (emailVerified) Primary else MaterialTheme.colorScheme.error
-                        Text(if (emailVerified) "狀態：已驗證" else "狀態：未驗證", color = statusColor)
+                        Text(
+                            text = "Email：$email",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 14.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        val statusColor =
+                            if (emailVerified) Primary else MaterialTheme.colorScheme.error
+                        Text(
+                            text = if (emailVerified) "狀態：已驗證" else "狀態：未驗證",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = statusColor
+                        )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             var showEmailDialog by remember { mutableStateOf(false) }
@@ -144,7 +175,14 @@ fun AccountScreen(
                                 onClick = { showEmailDialog = true },
                                 colors = OutlinedColors,
                                 shape = RoundedCornerShape(24.dp)
-                            ) { Icon(Icons.Rounded.Edit, null); Spacer(Modifier.width(6.dp)); Text("變更 Email") }
+                            ) {
+                                Icon(Icons.Rounded.Edit, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "變更 Email",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
 
                             OutlinedButton(
                                 onClick = {
@@ -158,7 +196,14 @@ fun AccountScreen(
                                 enabled = !emailVerified,
                                 colors = OutlinedColors,
                                 shape = RoundedCornerShape(24.dp)
-                            ) { Icon(Icons.Rounded.MarkEmailRead, null); Spacer(Modifier.width(6.dp)); Text("重寄驗證信") }
+                            ) {
+                                Icon(Icons.Rounded.MarkEmailRead, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "重寄驗證信",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
 
                             if (showEmailDialog) ChangeEmailDialog(
                                 current = email,
@@ -182,7 +227,14 @@ fun AccountScreen(
                             onClick = { showPwd = true },
                             colors = OutlinedColors,
                             shape = RoundedCornerShape(24.dp)
-                        ) { Icon(Icons.Rounded.Key, null); Spacer(Modifier.width(6.dp)); Text("變更密碼") }
+                        ) {
+                            Icon(Icons.Rounded.Key, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "變更密碼",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
 
                         if (showPwd) ChangePasswordDialog(
                             onDismiss = { showPwd = false },
@@ -199,7 +251,14 @@ fun AccountScreen(
                         AssistChip(
                             onClick = {},
                             enabled = false,
-                            label = { Text("MFA（稍後接）") },
+                            label = {
+                                Text(
+                                    "MFA（稍後接）",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            },
                             leadingIcon = { Icon(Icons.Rounded.Security, null) },
                             colors = AssistChipDefaults.assistChipColors(
                                 containerColor = PrimaryContainer,
@@ -211,13 +270,26 @@ fun AccountScreen(
 
                     // C) 裝置與工作階段（占位）
                     AccountSettingCard(title = "裝置與工作階段") {
-                        Text("將在此顯示已登入裝置，並提供登出其他裝置。")
+                        Text(
+                            text = "將在此顯示已登入裝置，並提供登出其他裝置。",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 13.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         OutlinedButton(
                             onClick = {},
                             enabled = false,
                             colors = OutlinedColors,
                             shape = RoundedCornerShape(24.dp)
-                        ) { Icon(Icons.Rounded.Logout, null); Spacer(Modifier.width(6.dp)); Text("登出其他裝置") }
+                        ) {
+                            Icon(Icons.Rounded.Logout, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "登出其他裝置",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
 
                     // D) 資料與帳號
@@ -228,7 +300,14 @@ fun AccountScreen(
                                 enabled = false,
                                 colors = OutlinedColors,
                                 shape = RoundedCornerShape(24.dp)
-                            ) { Icon(Icons.Rounded.FileDownload, null); Spacer(Modifier.width(6.dp)); Text("匯出我的資料") }
+                            ) {
+                                Icon(Icons.Rounded.FileDownload, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "匯出我的資料",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
 
                             var showDelete by remember { mutableStateOf(false) }
                             OutlinedButton(
@@ -238,7 +317,14 @@ fun AccountScreen(
                                     disabledContentColor = Danger.copy(alpha = 0.35f)
                                 ),
                                 shape = RoundedCornerShape(24.dp)
-                            ) { Icon(Icons.Rounded.DeleteForever, null); Spacer(Modifier.width(6.dp)); Text("刪除帳號") }
+                            ) {
+                                Icon(Icons.Rounded.DeleteForever, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "刪除帳號",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
 
                             if (showDelete) DeleteAccountDialog(
                                 onDismiss = { showDelete = false },
@@ -269,7 +355,12 @@ fun AccountScreen(
                             disabledContainerColor = Primary.copy(alpha = 0.5f),
                             disabledContentColor = Color.White.copy(alpha = 0.8f)
                         )
-                    ) { Text("完成") }
+                    ) {
+                        Text(
+                            text = "完成",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
 
                     Spacer(Modifier.height(24.dp))
                 }
@@ -279,55 +370,159 @@ fun AccountScreen(
 }
 
 @Composable
-private fun ChangeEmailDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun ChangeEmailDialog(
+    current: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
     var value by remember { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("變更 Email") },
+        title = {
+            Text(
+                "變更 Email",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("新 Email") })
-                Text("系統可能會要求你重新驗證身份。", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text("新 Email") }
+                )
+                Text(
+                    "系統可能會要求你重新驗證身份。",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
+                )
             }
         },
-        confirmButton = { Button(onClick = { onConfirm(value) }) { Text("確認") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        confirmButton = {
+            Button(onClick = { onConfirm(value) }) {
+                Text(
+                    "確認",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    "取消",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
     )
 }
 
 @Composable
-private fun ChangePasswordDialog(onDismiss: () -> Unit, onConfirm: (old: String, new: String) -> Unit) {
+private fun ChangePasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (old: String, new: String) -> Unit
+) {
     var old by remember { mutableStateOf("") }
     var new by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("變更密碼") },
+        title = {
+            Text(
+                "變更密碼",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = old, onValueChange = { old = it }, label = { Text("目前密碼") }, visualTransformation = PasswordVisualTransformation())
-                OutlinedTextField(value = new, onValueChange = { new = it }, label = { Text("新密碼") }, visualTransformation = PasswordVisualTransformation())
-                Text("至少 8 碼，混合大小寫與數字符號。", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = old,
+                    onValueChange = { old = it },
+                    label = { Text("目前密碼") },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+                OutlinedTextField(
+                    value = new,
+                    onValueChange = { new = it },
+                    label = { Text("新密碼") },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+                Text(
+                    "至少 8 碼，混合大小寫與數字符號。",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
+                )
             }
         },
-        confirmButton = { Button(onClick = { onConfirm(old, new) }, enabled = new.length >= 8) { Text("更新") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        confirmButton = {
+            Button(onClick = { onConfirm(old, new) }, enabled = new.length >= 8) {
+                Text(
+                    "更新",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    "取消",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
     )
 }
 
 @Composable
-private fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun DeleteAccountDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
     var pwd by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("刪除帳號") },
+        title = {
+            Text(
+                "刪除帳號",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("此動作無法復原。請輸入密碼以確認身份。")
-                OutlinedTextField(value = pwd, onValueChange = { pwd = it }, label = { Text("密碼") }, visualTransformation = PasswordVisualTransformation())
+                Text(
+                    "此動作無法復原。請輸入密碼以確認身份。",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
+                )
+                OutlinedTextField(
+                    value = pwd,
+                    onValueChange = { pwd = it },
+                    label = { Text("密碼") },
+                    visualTransformation = PasswordVisualTransformation()
+                )
             }
         },
-        confirmButton = { Button(onClick = { onConfirm(pwd) }) { Text("確認刪除") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        confirmButton = {
+            Button(onClick = { onConfirm(pwd) }) {
+                Text(
+                    "確認刪除",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    "取消",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
     )
 }
 
@@ -340,7 +535,10 @@ private fun AnimatedGradientBackground(
     val tRaw by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(4000, easing = LinearEasing), repeatMode = RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
     )
     val t = (1f - cos(tRaw * PI).toFloat()) / 2f
     val c1 = lerp(Color(0xFFF3F6FF), Color(0xFFE8F0FF), t)
@@ -354,7 +552,11 @@ private fun AnimatedGradientBackground(
             val ex = size.width * (0.85f - 0.35f * t)
             val ey = size.height * (0.90f - 0.25f * (1f - t))
             drawRect(
-                brush = Brush.linearGradient(colors = listOf(c1, c2, c3), start = Offset(sx, sy), end = Offset(ex, ey))
+                brush = Brush.linearGradient(
+                    colors = listOf(c1, c2, c3),
+                    start = Offset(sx, sy),
+                    end = Offset(ex, ey)
+                )
             )
         }
     )
@@ -367,19 +569,30 @@ private fun AccountSettingCard(
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F4FF)),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF7F4FF)
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    ),
                     color = Color(0xFF2C2C54)
                 )
             }
-            HorizontalDivider(color = Color(0xFFE0E0FF), thickness = 1.dp)
+            HorizontalDivider(
+                color = Color(0xFFE0E0FF),
+                thickness = 1.dp
+            )
             content()
         }
     }

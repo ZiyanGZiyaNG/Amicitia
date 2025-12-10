@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -86,7 +88,15 @@ fun PrivacyScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("隱私與可見度") },
+                    title = {
+                        Text(
+                            text = "隱私與可見度",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 18.sp
+                            )
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -151,12 +161,18 @@ fun PrivacyScreen(
                                 value = profileVisibility,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("誰可以看到你的個人資料") },
+                                label = {
+                                    Text(
+                                        "誰可以看到你的個人資料",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 12.sp
+                                        )
+                                    )
+                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 },
                                 modifier = Modifier
-                                    .menuAnchor()
                                     .fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -242,7 +258,10 @@ fun PrivacyScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("儲存設定")
+                            Text(
+                                text = "儲存設定",
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
                     }
 
@@ -265,7 +284,9 @@ private fun FancyDropdownItem(
         text = {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp
+                ),
                 color = if (selected) content.copy(alpha = 0.95f) else content.copy(alpha = 0.88f)
             )
         },
@@ -308,7 +329,14 @@ fun SettingCard(title: String, content: @Composable ColumnScope.() -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
             content()
         }
     }
@@ -328,7 +356,13 @@ fun SettingSwitch(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp
+                )
+            )
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
@@ -338,7 +372,13 @@ fun SettingSwitch(
                 )
             )
         }
-        Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = desc,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 12.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

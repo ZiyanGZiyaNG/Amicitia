@@ -2,6 +2,7 @@ package com.example.amicitia.ui.menu.map
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +17,9 @@ fun MapRoute(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = "Suck my dick")
+        Text(
+            text = "吃雞雞",
+            style = MaterialTheme.typography.headlineSmall
+        )
     }
 }

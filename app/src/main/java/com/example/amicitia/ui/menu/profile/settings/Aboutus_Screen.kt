@@ -23,6 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlin.math.PI
 import kotlin.math.cos
@@ -53,7 +54,15 @@ fun AboutUsScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("關於我們") },
+                    title = {
+                        Text(
+                            text = "關於我們",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -76,21 +85,28 @@ fun AboutUsScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 介紹段落
                 item {
                     Text(
                         text = "我們是一群高中生，彼此都喜愛著寫程式和各種競賽。" +
                                 "這個 Amicitia 的企劃發想是從 2025 年暑假的某一場黑客松所誕生的想法。" +
                                 "雖然那次比賽我們沒獲得評審青睞，但我們仍覺得這個創意很有意義，" +
                                 "因此在賽後決定把這個專案實作出來。",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp
+                        ),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
+                // 小標題：開發者們
                 item {
                     Text(
                         text = "開發者們",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -98,7 +114,7 @@ fun AboutUsScreen(
                 val members = listOf(
                     DevMember("Ziyang", "主導手機軟題化的人。哈哈屁眼", R.drawable.ziyang),
                     DevMember("泥巴", "你說得對，但是你說的也不完全對。從某種角度來說，你說的有一點對，可是從另一個角度看，你說得不對。也不能說是完全不對，只能說離完全對之間還有一點不對。如果忽略這點不對，那你說的當然是對的，可是以一個更嚴謹的態度去審視你說的對不對，那麼你說的又不是對的了。 ", R.drawable.dirt),
-                    DevMember("Jason", "《關於我這隻Sb綠豬可能要脫單這件事》團隊主輔 vibe coder +一個完全不稱職的隊長", R.drawable.json),
+                    DevMember("Jason", "《關於我這隻Sb綠豬可能要脫單這件事》團隊主輔 vibe coder + 一個完全不稱職的隊長", R.drawable.json),
                     DevMember("Mina", "(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(爬行))扭動)(分裂)(陰暗地蠕動)", R.drawable.ziyang),
                     DevMember("Leo", "效能優化、動畫與可用性測試", R.drawable.ziyang),
                     DevMember("Iris", "文件、README 與 CI 配置", R.drawable.ziyang),
@@ -127,7 +143,6 @@ private fun DeveloperCard(member: DevMember) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            // 卡片改為不透明表面顏色
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -150,11 +165,10 @@ private fun DeveloperCard(member: DevMember) {
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 )
             } else {
-                // 改這段：整塊灰圓形、不透明
                 Box(
                     modifier = Modifier
                         .size(72.dp)
-                        .background(Color(0xFFCACDD6), CircleShape) // 深灰藍感
+                        .background(Color(0xFFCACDD6), CircleShape)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 )
             }
@@ -164,13 +178,18 @@ private fun DeveloperCard(member: DevMember) {
             Column(Modifier.weight(1f)) {
                 Text(
                     text = member.name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = member.description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
                     maxLines = 3
                 )

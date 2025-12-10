@@ -82,10 +82,7 @@ fun HomeRoute(
     ) {
         Text(
             text = "選擇你的運動",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            ),
+            style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 

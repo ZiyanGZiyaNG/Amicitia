@@ -19,7 +19,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -29,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlin.math.PI
 import kotlin.math.cos
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,10 +134,21 @@ fun NotifyScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("通知偏好") },
+                    title = {
+                        Text(
+                            text = "通知偏好",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 18.sp
+                            )
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回"
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -152,7 +165,9 @@ fun NotifyScreen(
                         .fillMaxSize()
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
-                ) { CircularProgressIndicator(color = mainButtonColor) }
+                ) {
+                    CircularProgressIndicator(color = mainButtonColor)
+                }
             } else {
                 Column(
                     modifier = Modifier
@@ -240,7 +255,7 @@ fun NotifyScreen(
                             color = mainButtonColor
                         )
 
-                        // 時段選擇（同樣維持簡潔按鈕風格）
+                        // 時段選擇
                         val (sh, sm) = dndStart.split(":").map { it.toInt() }
                         val (eh, em) = dndEnd.split(":").map { it.toInt() }
                         val context = LocalContext.current
@@ -267,9 +282,18 @@ fun NotifyScreen(
                                     contentColor = mainButtonColor
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.linearGradient(listOf(mainButtonColor, lightBorderColor))
+                                    brush = Brush.linearGradient(
+                                        listOf(mainButtonColor, lightBorderColor)
+                                    )
                                 )
-                            ) { Icon(Icons.Rounded.Schedule, null); Spacer(Modifier.width(6.dp)); Text("開始 $dndStart") }
+                            ) {
+                                Icon(Icons.Rounded.Schedule, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "開始 $dndStart",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
 
                             OutlinedButton(
                                 enabled = dndEnabled,
@@ -279,21 +303,42 @@ fun NotifyScreen(
                                     contentColor = mainButtonColor
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.linearGradient(listOf(mainButtonColor, lightBorderColor))
+                                    brush = Brush.linearGradient(
+                                        listOf(mainButtonColor, lightBorderColor)
+                                    )
                                 )
-                            ) { Icon(Icons.Rounded.Schedule, null); Spacer(Modifier.width(6.dp)); Text("結束 $dndEnd") }
+                            ) {
+                                Icon(Icons.Rounded.Schedule, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "結束 $dndEnd",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
                         }
 
                         AssistChip(
-                            onClick = { dndEnabled = true; dndStart = "23:00"; dndEnd = "07:00"; persist() },
-                            label = { Text("一鍵 23:00–07:00") },
+                            onClick = {
+                                dndEnabled = true
+                                dndStart = "23:00"
+                                dndEnd = "07:00"
+                                persist()
+                            },
+                            label = {
+                                Text(
+                                    "一鍵 23:00–07:00",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            },
                             leadingIcon = { Icon(Icons.Rounded.Alarm, null) }
                         )
                     }
 
                     Spacer(Modifier.height(32.dp))
 
-                    // 底部「儲存」：維持與 PrivacyScreen 相同樣式（但已即時寫入，這顆可視為明確保存）
+                    // 底部「儲存」
                     Button(
                         onClick = { if (!isSaving && uid != null) persist() },
                         enabled = !isSaving,
@@ -315,7 +360,10 @@ fun NotifyScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("儲存設定")
+                            Text(
+                                text = "儲存設定",
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
                     }
 
@@ -326,7 +374,7 @@ fun NotifyScreen(
     }
 }
 
-/* 與 PrivacyScreen 等風格的背景（此函式在本檔案為 private，不會與另一檔案衝突） */
+/* 背景動畫 */
 @Composable
 private fun AnimatedGradientBackground(
     modifier: Modifier = Modifier
