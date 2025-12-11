@@ -95,8 +95,7 @@ fun RunModeScreen(navController: NavController) {
                 color = Color(0xFF6B7280)
             )
 
-            // 這裡加大間距，讓卡片整體往下
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             RunModeCard(
                 title = "單人模式 SOLO",
@@ -143,6 +142,7 @@ private fun RunModeCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
+            // Icon container
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -159,6 +159,7 @@ private fun RunModeCard(
             ) {
 
                 if (isMulti) {
+                    // 後面淡色的小 icon（多人模式）
                     Icon(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,
@@ -168,6 +169,7 @@ private fun RunModeCard(
                             .offset(x = (-6).dp, y = (-6).dp)
                     )
 
+                    // 前面主要 icon
                     Icon(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,

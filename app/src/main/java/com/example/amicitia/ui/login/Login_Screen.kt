@@ -2,9 +2,11 @@ package com.example.amicitia.ui.login
 
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -34,7 +36,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
@@ -57,43 +58,68 @@ import kotlinx.coroutines.tasks.await
 
 val PrimaryBlue = Color(0xFF3F51B5)
 
+
 @Composable
 fun AnimatedGradientBackground(
     modifier: Modifier = Modifier,
-    aStart: Color = Color(0xFFF3F6FF),
-    aMid:   Color = Color(0xFFEAF1FF),
-    aEnd:   Color = Color(0xFFDDE7FF),
-    bStart: Color = Color(0xFFE8F0FF),
-    bMid:   Color = Color(0xFFD6E3FF),
-    bEnd:   Color = Color(0xFFCBD9FF),
+    successProgress: Float = 0f
 ) {
-    val infinite = rememberInfiniteTransition()
-    val tRaw by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
+    val infinite = rememberInfiniteTransition(label = "login_bg")
+
+    val pulse by infinite.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            animation = tween(durationMillis = 3000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "login_pulse"
     )
-    val t = (1f - kotlin.math.cos(tRaw * Math.PI).toFloat()) / 2f
-    val c1 = lerp(aStart, bStart, t)
-    val c2 = lerp(aMid,   bMid,   t)
-    val c3 = lerp(aEnd,   bEnd,   t)
+
+    val drift by infinite.animateFloat(
+        initialValue = -0.04f,
+        targetValue = 0.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "login_drift"
+    )
 
     Box(
         modifier = modifier.drawBehind {
-            val sx = size.width  * (0.15f + 0.35f * t)
-            val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width  * (0.85f - 0.35f * t)
-            val ey = size.height * (0.90f - 0.25f * (1f - t))
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(c1, c2, c3),
-                    start = Offset(sx, sy),
-                    end = Offset(ex, ey)
+            val minDim = size.minDimension
+
+            val scaleBoost = 1f + 5f * successProgress
+            val pulseScaled = pulse * scaleBoost
+
+            val circle1Color = lerp(Color(0x667C3AED), Color(0xFFFFFFFF), successProgress)
+            val circle2Color = lerp(Color(0x664F46E5), Color(0xFFFFFFFF), successProgress)
+
+            drawCircle(
+                color = circle1Color,
+                radius = minDim * 0.45f * pulseScaled,
+                center = Offset(
+                    x = size.width * (0.0f + drift),
+                    y = size.height * (0.12f + drift * 0.5f)
                 )
             )
+
+            drawCircle(
+                color = circle2Color,
+                radius = minDim * 0.55f * pulseScaled,
+                center = Offset(
+                    x = size.width * (1.15f - drift * 0.5f),
+                    y = size.height * (0.95f - drift)
+                )
+            )
+
+            if (successProgress > 0f) {
+                drawRect(
+                    color = Color.White.copy(alpha = successProgress * 0.9f),
+                    size = size
+                )
+            }
         }
     )
 }
@@ -129,10 +155,24 @@ fun LoginScreen(navController: NavController) {
     var fieldErrorPassword by remember { mutableStateOf<String?>(null) }
     var formMessage by remember { mutableStateOf<String?>(null) }
 
-    // 忘記密碼 Dialog 狀態
+
     var showResetDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
     var resetLoading by remember { mutableStateOf(false) }
+    var loginSuccess by remember { mutableStateOf(false) }
+    val successProgress by animateFloatAsState(
+        targetValue = if (loginSuccess) 1f else 0f,
+        animationSpec = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+        label = "login-success",
+        finishedListener = { value ->
+            if (value == 1f && loginSuccess) {
+                navController.navigate(Routes.MENU) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+    )
 
     val scope = rememberCoroutineScope()
     val pwFocus = remember { FocusRequester() }
@@ -150,11 +190,7 @@ fun LoginScreen(navController: NavController) {
             val result = auth.signInWithEmailAndPassword(email.trim(), password).await()
             val user = result.user ?: error("找不到使用者")
             formMessage = "登入成功，歡迎 ${user.displayName ?: user.email}"
-            delay(800)
-            navController.navigate(Routes.MENU) {
-                popUpTo(Routes.LOGIN) { inclusive = true }
-                launchSingleTop = true
-            }
+            loginSuccess = true
         } catch (e: Exception) {
             val msg = e.message?.lowercase() ?: ""
             formMessage = when {
@@ -199,14 +235,16 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
             .imePadding()
     ) {
-        AnimatedGradientBackground(modifier = Modifier.matchParentSize())
+        AnimatedGradientBackground(
+            modifier = Modifier.matchParentSize(),
+            successProgress = successProgress
+        )
 
         Column(
             modifier = Modifier
@@ -294,7 +332,7 @@ fun LoginScreen(navController: NavController) {
                                 ),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
-                                        if (!loading) scope.launch { login() }
+                                        if (!loading && !loginSuccess) scope.launch { login() }
                                     }
                                 )
                             )
@@ -327,7 +365,7 @@ fun LoginScreen(navController: NavController) {
 
                     Button(
                         onClick = { scope.launch { login() } },
-                        enabled = !loading && email.isNotBlank() && password.isNotBlank(),
+                        enabled = !loading && !loginSuccess && email.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
@@ -348,7 +386,7 @@ fun LoginScreen(navController: NavController) {
 
                     OutlinedButton(
                         onClick = { navController.navigate(Routes.REGISTER) },
-                        enabled = !loading,
+                        enabled = !loading && !loginSuccess,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
@@ -367,7 +405,7 @@ fun LoginScreen(navController: NavController) {
                             resetEmail = email
                             showResetDialog = true
                         },
-                        enabled = !loading
+                        enabled = !loading && !loginSuccess
                     ) {
                         Text("忘記密碼？", color = PrimaryBlue, textDecoration = TextDecoration.Underline)
                     }
@@ -388,12 +426,7 @@ fun LoginScreen(navController: NavController) {
             ) {
                 AnimatedGradientBackground(
                     modifier = Modifier.matchParentSize(),
-                    aStart = Color(0xFFF3F6FF),
-                    aMid = Color(0xFFEAF1FF),
-                    aEnd = Color(0xFFDDE7FF),
-                    bStart = Color(0xFFE8F0FF),
-                    bMid = Color(0xFFD6E3FF),
-                    bEnd = Color(0xFFCBD9FF)
+                    successProgress = 0f   // 重設密碼對話框不要進入成功動畫
                 )
 
                 Box(

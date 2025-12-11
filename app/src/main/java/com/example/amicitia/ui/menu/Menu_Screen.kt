@@ -2,6 +2,8 @@ package com.example.amicitia.ui.menu
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -34,7 +36,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -55,51 +56,56 @@ import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import kotlin.math.cos
-import androidx.compose.animation.core.animateFloat
 
-private val PrimaryBlue = Color(0xFF3F51B5)
+private val PrimaryPurple = Color(0xFF4F46E5)
 
-// ========= 背景動畫 =========
+// ========= 背景：改成跟 RunMode 一樣的兩顆紫色圓 =========
 
 @Composable
 private fun AnimatedGradientBackground(
-    modifier: Modifier = Modifier,
-    aStart: Color = Color(0xFFF3F6FF),
-    aMid:   Color = Color(0xFFEAF1FF),
-    aEnd:   Color = Color(0xFFDDE7FF),
-    bStart: Color = Color(0xFFE8F0FF),
-    bMid:   Color = Color(0xFFD6E3FF),
-    bEnd:   Color = Color(0xFFCBD9FF),
+    modifier: Modifier = Modifier
 ) {
-    val infinite = rememberInfiniteTransition()
-    val tRaw by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
+    val infiniteTransition = rememberInfiniteTransition(label = "menu_bg")
+
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        )
+            animation = tween(durationMillis = 3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "menu_pulse"
     )
 
-    val t = (1f - cos(tRaw * Math.PI).toFloat()) / 2f
-
-    val c1 = lerp(aStart, bStart, t)
-    val c2 = lerp(aMid,   bMid,   t)
-    val c3 = lerp(aEnd,   bEnd,   t)
+    val drift by infiniteTransition.animateFloat(
+        initialValue = -0.04f,
+        targetValue = 0.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "menu_drift"
+    )
 
     Box(
         modifier = modifier.drawBehind {
-            val sx = size.width  * (0.15f + 0.35f * t)
-            val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width  * (0.85f - 0.35f * t)
-            val ey = size.height * (0.90f - 0.25f * (1f - t))
+            val minDim = size.minDimension
 
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(c1, c2, c3),
-                    start = Offset(sx, sy),
-                    end = Offset(ex, ey)
+            drawCircle(
+                color = Color(0x667C3AED),
+                radius = minDim * 0.45f * pulse,
+                center = Offset(
+                    x = size.width * (0.0f + drift),
+                    y = size.height * (0.12f + drift * 0.5f)
+                )
+            )
+
+            drawCircle(
+                color = Color(0x664F46E5),
+                radius = minDim * 0.55f * pulse,
+                center = Offset(
+                    x = size.width * (1.15f - drift * 0.5f),
+                    y = size.height * (0.95f - drift)
                 )
             )
         }
@@ -251,7 +257,7 @@ private fun BottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
 
     Surface(
-        color = Color.White.copy(alpha = 0.75f),
+        color = Color.White.copy(alpha = 0.78f),
         tonalElevation = 12.dp,
         shadowElevation = 16.dp,
         shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
@@ -275,8 +281,7 @@ private fun BottomBar(navController: NavHostController) {
                     selected = selected,
                     onClick = {
                         if (item.route == MenuTabs.HOME) {
-                            // 關鍵：不管現在在 run_mode / run_solo / run_multi / 其他 tab
-                            // 一律把 stack 彈回 menu_home
+                            // 直接彈回 Home
                             navController.popBackStack(
                                 route = MenuTabs.HOME,
                                 inclusive = false
@@ -299,7 +304,7 @@ private fun BottomBar(navController: NavHostController) {
                         )
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = PrimaryBlue,
+                        selectedIconColor = PrimaryPurple,
                         unselectedIconColor = Color(0xFF64748B),
                         indicatorColor = Color.Transparent
                     ),
@@ -334,6 +339,6 @@ private fun AnimatedIcon(
             scaleX = scale,
             scaleY = scale
         ),
-        tint = if (selected) PrimaryBlue else Color(0xFF64748B)
+        tint = if (selected) PrimaryPurple else Color(0xFF64748B)
     )
 }
