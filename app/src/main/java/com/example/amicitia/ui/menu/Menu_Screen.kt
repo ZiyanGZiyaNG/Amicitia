@@ -172,7 +172,6 @@ fun MenuScreen(
     }
 }
 
-// ========= 內層 NavHost =========
 
 @Composable
 private fun MenuNavHost(
@@ -192,7 +191,6 @@ private fun MenuNavHost(
                     when (sportKey) {
                         "run" -> navController.navigate("run_mode")
                         else  -> {
-                            // 其他運動目前先不跳頁
                         }
                     }
                 }
@@ -228,7 +226,6 @@ private fun MenuNavHost(
     }
 }
 
-// ========= BottomBar 狀態 =========
 
 @Composable
 private fun currentRoute(navController: NavHostController): String? {
@@ -250,7 +247,6 @@ private val bottomItems = listOf(
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
 
-// ========= BottomBar 本體 =========
 
 @Composable
 private fun BottomBar(navController: NavHostController) {
@@ -314,8 +310,6 @@ private fun BottomBar(navController: NavHostController) {
         }
     }
 }
-
-// ========= Bottom icon 動畫 =========
 
 @Composable
 private fun AnimatedIcon(

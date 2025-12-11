@@ -200,7 +200,6 @@ fun ProfileRoute(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
-        // 右上角設定 icon
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -216,8 +215,6 @@ fun ProfileRoute(
             )
         }
     }
-
-    // 底部設定 Sheet
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },
@@ -270,6 +267,7 @@ fun ProfileRoute(
                     SettingRow("登出", Icons.Rounded.Logout) {
                         showSettingsSheet = false
                         Firebase.auth.signOut()
+                        outerNavController.navigate(Routes.LOGIN)
                     }
 
                     Spacer(Modifier.height(6.dp))
