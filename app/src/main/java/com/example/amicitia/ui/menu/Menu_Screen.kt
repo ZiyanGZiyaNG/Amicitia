@@ -33,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,7 +49,7 @@ import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
-import com.example.amicitia.ui.menu.home.run.SoloRunScreen
+import com.example.amicitia.ui.menu.home.run.RunSoloScreen
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
@@ -59,12 +58,8 @@ import com.google.firebase.ktx.Firebase
 
 private val PrimaryPurple = Color(0xFF4F46E5)
 
-// ========= 背景：改成跟 RunMode 一樣的兩顆紫色圓 =========
-
 @Composable
-private fun AnimatedGradientBackground(
-    modifier: Modifier = Modifier
-) {
+private fun AnimatedGradientBackground(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "menu_bg")
 
     val pulse by infiniteTransition.animateFloat(
@@ -112,8 +107,6 @@ private fun AnimatedGradientBackground(
     )
 }
 
-// ========= 內層 tabs route =========
-
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -121,21 +114,15 @@ private object MenuTabs {
     const val PROFILE = "menu_profile"
 }
 
-// ========= Menu 主畫面 =========
-
 @Composable
-fun MenuScreen(
-    outerNavController: NavController
-) {
+fun MenuScreen(outerNavController: NavController) {
     val innerNav: NavHostController = rememberNavController()
 
     val auth = Firebase.auth
     val db = Firebase.firestore
     val uid = auth.currentUser?.uid
 
-    val presenceManager = remember(uid) {
-        if (uid != null) PresenceManager(uid, db) else null
-    }
+    val presenceManager = remember(uid) { if (uid != null) PresenceManager(uid, db) else null }
 
     DisposableEffect(uid) {
         presenceManager?.start()
@@ -162,16 +149,21 @@ fun MenuScreen(
             containerColor = Color.Transparent,
             bottomBar = { BottomBar(innerNav) }
         ) { innerPadding ->
+            // Map 這頁要滿版，所以不要吃 innerPadding
+            val route = currentRoute(innerNav)
+            val contentModifier =
+                if (route == MenuTabs.MAP) Modifier.fillMaxSize()
+                else Modifier.fillMaxSize().padding(innerPadding)
+
             MenuNavHost(
                 navController = innerNav,
                 outerNavController = outerNavController,
-                modifier = Modifier.padding(innerPadding),
+                modifier = contentModifier,
                 onLogout = handleLogout
             )
         }
     }
 }
-
 
 @Composable
 private fun MenuNavHost(
@@ -190,42 +182,28 @@ private fun MenuNavHost(
                 onSportSelected = { sportKey ->
                     when (sportKey) {
                         "run" -> navController.navigate("run_mode")
-                        else  -> {
-                        }
+                        else -> {}
                     }
                 }
             )
         }
 
-        composable(MenuTabs.MAP) {
-            MapRoute()
-        }
+        composable(MenuTabs.MAP) { MapRoute() }
 
-        composable(MenuTabs.CHAT) {
-            ChatRoute()
-        }
+        composable(MenuTabs.CHAT) { ChatRoute() }
 
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
                 outerNavController = outerNavController,
-                onLogout = onLogout,
+                onLogout = onLogout
             )
         }
 
-        composable("run_mode") {
-            RunModeScreen(navController)
-        }
-
-        composable("run_solo") {
-            SoloRunScreen(navController)
-        }
-
-        composable("run_multi") {
-            MultiRunScreen(navController)
-        }
+        composable("run_mode") { RunModeScreen(navController) }
+        composable("run_solo") { RunSoloScreen(navController = navController) }
+        composable("run_multi") { MultiRunScreen(navController) }
     }
 }
-
 
 @Composable
 private fun currentRoute(navController: NavHostController): String? {
@@ -233,12 +211,7 @@ private fun currentRoute(navController: NavHostController): String? {
     return entry?.destination?.route
 }
 
-private data class BottomItem(
-    val route: String,
-    val icon: ImageVector,
-    val label: String,
-    val badgeCount: Int? = null
-)
+private data class BottomItem(val route: String, val icon: ImageVector, val label: String)
 
 private val bottomItems = listOf(
     BottomItem(MenuTabs.HOME, Icons.Outlined.Home, "首頁"),
@@ -247,28 +220,21 @@ private val bottomItems = listOf(
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
 
-
 @Composable
 private fun BottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
 
     Surface(
-        color = Color.White.copy(alpha = 0.78f),
+        color = Color.White, // 不透明：bar 底下不要透出背景
         tonalElevation = 12.dp,
         shadowElevation = 16.dp,
         shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
-        modifier = Modifier.padding(
-            start = 24.dp,
-            end = 24.dp,
-            bottom = 12.dp
-        )
+        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
     ) {
         NavigationBar(
             containerColor = Color.Transparent,
             tonalElevation = 0.dp,
-            modifier = Modifier
-                .height(52.dp)
-                .padding(horizontal = 8.dp)
+            modifier = Modifier.height(52.dp).padding(horizontal = 8.dp)
         ) {
             bottomItems.forEach { item ->
                 val selected = route == item.route
@@ -277,28 +243,16 @@ private fun BottomBar(navController: NavHostController) {
                     selected = selected,
                     onClick = {
                         if (item.route == MenuTabs.HOME) {
-                            // 直接彈回 Home
-                            navController.popBackStack(
-                                route = MenuTabs.HOME,
-                                inclusive = false
-                            )
+                            navController.popBackStack(MenuTabs.HOME, inclusive = false)
                         } else {
                             navController.navigate(item.route) {
                                 launchSingleTop = true
-                                popUpTo(MenuTabs.HOME) {
-                                    saveState = true
-                                }
+                                popUpTo(MenuTabs.HOME) { saveState = true }
                                 restoreState = true
                             }
                         }
                     },
-                    icon = {
-                        AnimatedIcon(
-                            selected = selected,
-                            icon = item.icon,
-                            contentDescription = item.label
-                        )
-                    },
+                    icon = { AnimatedIcon(selected, item.icon, item.label) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = PrimaryPurple,
                         unselectedIconColor = Color(0xFF64748B),
@@ -312,27 +266,17 @@ private fun BottomBar(navController: NavHostController) {
 }
 
 @Composable
-private fun AnimatedIcon(
-    selected: Boolean,
-    icon: ImageVector,
-    contentDescription: String?
-) {
+private fun AnimatedIcon(selected: Boolean, icon: ImageVector, contentDescription: String?) {
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.15f else 1f,
-        animationSpec = tween(
-            durationMillis = 180,
-            easing = FastOutSlowInEasing
-        ),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "icon-scale"
     )
 
     Icon(
         imageVector = icon,
         contentDescription = contentDescription,
-        modifier = Modifier.graphicsLayer(
-            scaleX = scale,
-            scaleY = scale
-        ),
+        modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
         tint = if (selected) PrimaryPurple else Color(0xFF64748B)
     )
 }

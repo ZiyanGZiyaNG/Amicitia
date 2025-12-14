@@ -14,6 +14,7 @@ import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
 import com.example.amicitia.ui.register.RegisterScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
+import com.example.amicitia.ui.menu.map.MapScreen
 import com.google.firebase.ktx.Firebase
 
 object Routes {
@@ -25,6 +26,7 @@ object Routes {
     const val NOTIFY = "notify"
     const val PRIVACY = "privacy"
     const val ABOUT = "about"
+    const val MAP = "map"
 }
 
 @Composable
