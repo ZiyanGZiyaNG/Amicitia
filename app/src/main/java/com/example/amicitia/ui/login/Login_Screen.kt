@@ -1,7 +1,8 @@
 package com.example.amicitia.ui.login
 
 import android.util.Log
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -10,11 +11,29 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,8 +45,24 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,15 +70,17 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
@@ -52,76 +89,166 @@ import com.example.amicitia.nav.Routes
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.random.Random
 
-val PrimaryBlue = Color(0xFF3F51B5)
+private val PrimaryBlue = Color(0xFF3F51B5)
+private val BgDark = Color(0xFF1E1E1E)
 
-
+/**
+ * ✅ 讓 Login 背景「跟 Register 一模一樣」：
+ * 1) 只有 BgDark
+ * 2) 同一個 BottomDecorBackground（底部微光暈）
+ * 3) 不做任何白色爆光覆蓋（避免看起來比較亮）
+ */
 @Composable
-fun AnimatedGradientBackground(
+private fun AuthBackground(
     modifier: Modifier = Modifier,
     successProgress: Float = 0f
 ) {
-    val infinite = rememberInfiniteTransition(label = "login_bg")
+    Box(
+        modifier = modifier
+            .background(BgDark)
+    ) {
+        BottomDecorBackground(
+            modifier = Modifier.matchParentSize(),
+            tint = PrimaryBlue,
+            successProgress = successProgress
+        )
+    }
+}
 
-    val pulse by infinite.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "login_pulse"
-    )
-
+@Composable
+private fun BottomDecorBackground(
+    modifier: Modifier = Modifier,
+    tint: Color = PrimaryBlue,
+    successProgress: Float = 0f
+) {
+    val infinite = rememberInfiniteTransition(label = "login_bottom")
     val drift by infinite.animateFloat(
-        initialValue = -0.04f,
-        targetValue = 0.04f,
+        initialValue = -12f,
+        targetValue = 12f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5500, easing = LinearEasing),
+            animation = tween(durationMillis = 9000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "login_drift"
     )
 
+    val alphaFactor = 1f - successProgress
+
+    Canvas(modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tint.copy(alpha = 0.14f * alphaFactor),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.5f, h * 0.88f + drift),
+                radius = h * 0.75f
+            )
+        )
+    }
+}
+
+/**
+ * 液態玻璃卡片（與你 Register 的版本一致）
+ */
+@Composable
+private fun LiquidGlassCard(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = 26.dp,
+    shadowDp: Dp = 16.dp,
+    frostAlpha: Float = 0.24f,
+    borderAlpha: Float = 0.40f,
+    innerBorderAlpha: Float = 0.16f,
+    noiseAlpha: Float = 0.035f,
+    contentPadding: Dp = 16.dp,
+    content: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(cornerDp)
+
     Box(
-        modifier = modifier.drawBehind {
-            val minDim = size.minDimension
+        modifier = modifier
+            .shadow(shadowDp, shape, clip = false)
+            .clip(shape)
+            .drawBehind {
+                val cornerPx = cornerDp.toPx()
 
-            val scaleBoost = 1f + 5f * successProgress
-            val pulseScaled = pulse * scaleBoost
-
-            val circle1Color = lerp(Color(0x667C3AED), Color(0xFFFFFFFF), successProgress)
-            val circle2Color = lerp(Color(0x664F46E5), Color(0xFFFFFFFF), successProgress)
-
-            drawCircle(
-                color = circle1Color,
-                radius = minDim * 0.45f * pulseScaled,
-                center = Offset(
-                    x = size.width * (0.0f + drift),
-                    y = size.height * (0.12f + drift * 0.5f)
+                val glow = Brush.radialGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width * 0.5f, size.height * 0.35f),
+                    radius = size.minDimension * 0.95f
                 )
-            )
-
-            drawCircle(
-                color = circle2Color,
-                radius = minDim * 0.55f * pulseScaled,
-                center = Offset(
-                    x = size.width * (1.15f - drift * 0.5f),
-                    y = size.height * (0.95f - drift)
-                )
-            )
-
-            if (successProgress > 0f) {
-                drawRect(
-                    color = Color.White.copy(alpha = successProgress * 0.9f),
+                drawRoundRect(
+                    brush = glow,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
                     size = size
                 )
+
+                drawRoundRect(
+                    color = Color.White.copy(alpha = frostAlpha),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                val highlight = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.26f),
+                        Color.White.copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
+                    start = Offset(size.width * -0.22f, size.height * 0.02f),
+                    end = Offset(size.width * 0.92f, size.height * 0.90f)
+                )
+                drawRoundRect(
+                    brush = highlight,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                val depth = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.10f)
+                    ),
+                    startY = size.height * 0.30f,
+                    endY = size.height
+                )
+                drawRoundRect(
+                    brush = depth,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                if (noiseAlpha > 0f) {
+                    val dotCount = (size.width * size.height / 9000f).toInt().coerceIn(40, 180)
+                    repeat(dotCount) {
+                        val x = Random.nextFloat() * size.width
+                        val y = Random.nextFloat() * size.height
+                        val r = Random.nextFloat().coerceIn(0.6f, 1.4f)
+                        drawCircle(
+                            color = Color.White.copy(alpha = noiseAlpha),
+                            radius = r,
+                            center = Offset(x, y)
+                        )
+                    }
+                }
             }
-        }
-    )
+            .border(1.dp, Color.White.copy(alpha = borderAlpha), shape)
+            .padding(1.dp)
+            .border(1.dp, Color.White.copy(alpha = innerBorderAlpha), shape)
+            .padding(contentPadding)
+    ) {
+        content()
+    }
 }
 
 @Composable
@@ -129,10 +256,12 @@ fun LoginLogo(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(112.dp)
-            .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
+            .shadow(elevation = 10.dp, shape = CircleShape, clip = false)
             .clip(CircleShape)
-            .background(Color.White)
-            .border(1.dp, PrimaryBlue.copy(alpha = 0.2f), CircleShape),
+            .background(Color.White.copy(alpha = 0.94f))
+            .border(1.dp, Color.White.copy(alpha = 0.60f), CircleShape)
+            .padding(2.dp)
+            .border(1.dp, PrimaryBlue.copy(alpha = 0.16f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -155,11 +284,11 @@ fun LoginScreen(navController: NavController) {
     var fieldErrorPassword by remember { mutableStateOf<String?>(null) }
     var formMessage by remember { mutableStateOf<String?>(null) }
 
-
     var showResetDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
     var resetLoading by remember { mutableStateOf(false) }
     var loginSuccess by remember { mutableStateOf(false) }
+
     val successProgress by animateFloatAsState(
         targetValue = if (loginSuccess) 1f else 0f,
         animationSpec = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
@@ -235,13 +364,36 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
+    val glassFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        cursorColor = Color.White.copy(alpha = 0.95f),
+
+        focusedLabelColor = Color.White.copy(alpha = 0.90f),
+        unfocusedLabelColor = Color.White.copy(alpha = 0.78f),
+
+        focusedBorderColor = Color.White.copy(alpha = 0.65f),
+        unfocusedBorderColor = Color.White.copy(alpha = 0.38f),
+
+        focusedLeadingIconColor = Color.White.copy(alpha = 0.90f),
+        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
+        focusedTrailingIconColor = Color.White.copy(alpha = 0.90f),
+        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
+
+        focusedContainerColor = Color.White.copy(alpha = 0.16f),
+        unfocusedContainerColor = Color.White.copy(alpha = 0.12f),
+        errorContainerColor = Color.White.copy(alpha = 0.12f)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgDark) // ✅ 和 Register 一樣：背景直接在最外層 Box
             .systemBarsPadding()
             .imePadding()
     ) {
-        AnimatedGradientBackground(
+        // ✅ 和 Register 一樣：背景內容（BgDark + 底部光暈）
+        AuthBackground(
             modifier = Modifier.matchParentSize(),
             successProgress = successProgress
         )
@@ -257,22 +409,23 @@ fun LoginScreen(navController: NavController) {
             LoginLogo()
 
             Spacer(Modifier.height(16.dp))
-            Text("歡迎回來", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF0F172A))
-            Text("請登入以繼續", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF475569))
+            Text("歡迎回來", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+            Text("請登入以繼續", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.70f))
 
             Spacer(Modifier.height(20.dp))
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                tonalElevation = 2.dp,
-                shadowElevation = 8.dp,
-                color = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.fillMaxWidth()
+            LiquidGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                cornerDp = 26.dp,
+                shadowDp = 16.dp,
+                frostAlpha = 0.24f,
+                borderAlpha = 0.40f,
+                innerBorderAlpha = 0.16f,
+                noiseAlpha = 0.035f,
+                contentPadding = 16.dp
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
@@ -284,15 +437,14 @@ fun LoginScreen(navController: NavController) {
                         leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
                         singleLine = true,
                         isError = fieldErrorEmail != null,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(18.dp),
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
-                        keyboardActions = KeyboardActions(
-                            onNext = { pwFocus.requestFocus() }
-                        )
+                        keyboardActions = KeyboardActions(onNext = { pwFocus.requestFocus() }),
+                        colors = glassFieldColors
                     )
 
                     AnimatedVisibility(visible = fieldErrorEmail != null) {
@@ -323,18 +475,15 @@ fun LoginScreen(navController: NavController) {
                                         Icon(icon, contentDescription = null)
                                     }
                                 },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(18.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .focusRequester(pwFocus),
-                                keyboardOptions = KeyboardOptions(
-                                    imeAction = ImeAction.Done
-                                ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        if (!loading && !loginSuccess) scope.launch { login() }
-                                    }
-                                )
+                                    onDone = { if (!loading && !loginSuccess) scope.launch { login() } }
+                                ),
+                                colors = glassFieldColors
                             )
 
                             AnimatedVisibility(visible = fieldErrorPassword != null) {
@@ -355,7 +504,7 @@ fun LoginScreen(navController: NavController) {
                         }
                         Text(
                             text = formMessage ?: "",
-                            color = if (isErrorMsg) MaterialTheme.colorScheme.error else PrimaryBlue,
+                            color = if (isErrorMsg) MaterialTheme.colorScheme.error else Color.White.copy(alpha = 0.92f),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -369,14 +518,14 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryBlue,
+                            containerColor = PrimaryBlue.copy(alpha = 0.88f),
                             contentColor = Color.White
                         )
                     ) {
                         if (loading) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                             Spacer(Modifier.width(8.dp))
                             Text("處理中…")
                         } else {
@@ -390,15 +539,13 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.42f)),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = PrimaryBlue
+                            containerColor = Color.White.copy(alpha = 0.04f),
+                            contentColor = Color.White
                         )
-                    ) {
-                        Text("註冊")
-                    }
+                    ) { Text("註冊") }
 
                     TextButton(
                         onClick = {
@@ -407,7 +554,11 @@ fun LoginScreen(navController: NavController) {
                         },
                         enabled = !loading && !loginSuccess
                     ) {
-                        Text("忘記密碼？", color = PrimaryBlue, textDecoration = TextDecoration.Underline)
+                        Text(
+                            "忘記密碼？",
+                            color = Color.White.copy(alpha = 0.92f),
+                            textDecoration = TextDecoration.Underline
+                        )
                     }
                 }
             }
@@ -420,75 +571,72 @@ fun LoginScreen(navController: NavController) {
         Dialog(onDismissRequest = { if (!resetLoading) showResetDialog = false }) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
+                    .fillMaxWidth(0.92f)
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(22.dp))
             ) {
-                AnimatedGradientBackground(
-                    modifier = Modifier.matchParentSize(),
-                    successProgress = 0f   // 重設密碼對話框不要進入成功動畫
-                )
-
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.White.copy(alpha = 0.35f))
-                        .border(1.dp, PrimaryBlue.copy(alpha = 0.3f), RoundedCornerShape(22.dp))
-                )
-
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                LiquidGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerDp = 24.dp,
+                    shadowDp = 16.dp,
+                    frostAlpha = 0.28f,
+                    borderAlpha = 0.42f,
+                    innerBorderAlpha = 0.16f,
+                    noiseAlpha = 0.030f,
+                    contentPadding = 18.dp
                 ) {
-                    Text("重設密碼", style = MaterialTheme.typography.titleMedium, color = Color(0xFF0F172A))
-                    Text("請輸入你的註冊 Email，我們會寄送重設密碼連結給你。", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF475569))
-
-                    OutlinedTextField(
-                        value = resetEmail,
-                        onValueChange = { resetEmail = it.replace(" ", "").replace("\n", "") },
-                        singleLine = true,
-                        enabled = !resetLoading,
-                        label = { Text("電子郵件", color = Color(0xFF475569)) },
-                        leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null, tint = Color(0xFF475569)) },
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryBlue,
-                            unfocusedBorderColor = PrimaryBlue.copy(alpha = 0.4f),
-                            cursorColor = PrimaryBlue,
-                            focusedLabelColor = PrimaryBlue,
-                            unfocusedLabelColor = Color(0xFF475569),
-                            focusedTextColor = Color(0xFF0F172A),
-                            unfocusedTextColor = Color(0xFF0F172A)
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("重設密碼", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Text(
+                            "請輸入你的註冊 Email，我們會寄送重設密碼連結給你。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.78f)
                         )
-                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { if (!resetLoading) showResetDialog = false },
-                            colors = ButtonDefaults.textButtonColors(contentColor = PrimaryBlue)
-                        ) { Text("取消") }
-
-                        TextButton(
-                            onClick = {
-                                if (resetEmail.isBlank() || !resetEmail.contains("@")) {
-                                    formMessage = "請輸入正確的 Email"
-                                    return@TextButton
-                                }
-                                scope.launch { sendPasswordReset(resetEmail) }
-                            },
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it.replace(" ", "").replace("\n", "") },
+                            singleLine = true,
                             enabled = !resetLoading,
-                            colors = ButtonDefaults.textButtonColors(contentColor = PrimaryBlue)
+                            label = { Text("電子郵件") },
+                            leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
+                            shape = RoundedCornerShape(18.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = glassFieldColors
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
                         ) {
-                            if (resetLoading) {
-                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = PrimaryBlue)
-                                Spacer(Modifier.width(6.dp))
+                            TextButton(
+                                onClick = { if (!resetLoading) showResetDialog = false },
+                                enabled = !resetLoading
+                            ) { Text("取消", color = Color.White.copy(alpha = 0.92f)) }
+
+                            TextButton(
+                                onClick = {
+                                    if (resetEmail.isBlank() || !resetEmail.contains("@")) {
+                                        formMessage = "請輸入正確的 Email"
+                                        return@TextButton
+                                    }
+                                    scope.launch { sendPasswordReset(resetEmail) }
+                                },
+                                enabled = !resetLoading
+                            ) {
+                                if (resetLoading) {
+                                    CircularProgressIndicator(
+                                        Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                Text("寄送", color = Color.White.copy(alpha = 0.96f))
                             }
-                            Text("寄送")
                         }
                     }
                 }

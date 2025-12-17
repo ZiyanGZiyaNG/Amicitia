@@ -2,10 +2,6 @@ package com.example.amicitia.ui.register
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -14,8 +10,27 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,20 +41,46 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.amicitia.ui.login.AnimatedGradientBackground
-import com.example.amicitia.ui.theme.PrimaryBlue
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
@@ -48,6 +89,108 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.random.Random
+
+private val PrimaryBlue = Color(0xFF3F51B5)
+private val BgDark = Color(0xFF1E1E1E)
+
+@Composable
+private fun LiquidGlassCard(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = 26.dp,
+    shadowDp: Dp = 16.dp,
+    frostAlpha: Float = 0.24f,
+    borderAlpha: Float = 0.40f,
+    innerBorderAlpha: Float = 0.16f,
+    noiseAlpha: Float = 0.035f,
+    contentPadding: Dp = 16.dp,
+    content: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(cornerDp)
+
+    Box(
+        modifier = modifier
+            .shadow(shadowDp, shape, clip = false)
+            .clip(shape)
+            .drawBehind {
+                val cornerPx = cornerDp.toPx()
+
+                // 0) 外圈柔光：讓卡片從背景跳出來
+                val glow = Brush.radialGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width * 0.5f, size.height * 0.35f),
+                    radius = size.minDimension * 0.95f
+                )
+                drawRoundRect(
+                    brush = glow,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                // 1) 霧面底
+                drawRoundRect(
+                    color = Color.White.copy(alpha = frostAlpha),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                // 2) 斜向高光
+                val highlight = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.26f),
+                        Color.White.copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
+                    start = Offset(size.width * -0.22f, size.height * 0.02f),
+                    end = Offset(size.width * 0.92f, size.height * 0.90f)
+                )
+                drawRoundRect(
+                    brush = highlight,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                // 3) 底部厚度陰影
+                val depth = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.10f)
+                    ),
+                    startY = size.height * 0.30f,
+                    endY = size.height
+                )
+                drawRoundRect(
+                    brush = depth,
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    size = size
+                )
+
+                // 4) 超淡噪點
+                if (noiseAlpha > 0f) {
+                    val dotCount = (size.width * size.height / 9000f).toInt().coerceIn(40, 180)
+                    repeat(dotCount) {
+                        val x = Random.nextFloat() * size.width
+                        val y = Random.nextFloat() * size.height
+                        val r = Random.nextFloat().coerceIn(0.6f, 1.4f)
+                        drawCircle(
+                            color = Color.White.copy(alpha = noiseAlpha),
+                            radius = r,
+                            center = Offset(x, y)
+                        )
+                    }
+                }
+            }
+            .border(1.dp, Color.White.copy(alpha = borderAlpha), shape)
+            .padding(1.dp)
+            .border(1.dp, Color.White.copy(alpha = innerBorderAlpha), shape)
+            .padding(contentPadding)
+    ) {
+        content()
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,10 +219,7 @@ fun RegisterScreen(navController: NavController) {
     var registerSuccess by remember { mutableStateOf(false) }
     val successProgress by animateFloatAsState(
         targetValue = if (registerSuccess) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 1800,
-            easing = FastOutSlowInEasing
-        ),
+        animationSpec = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
         label = "register-success",
         finishedListener = { value ->
             if (value == 1f && registerSuccess) {
@@ -183,7 +323,6 @@ fun RegisterScreen(navController: NavController) {
             user.sendEmailVerification().await()
 
             snackbarHostState.showSnackbar("註冊成功！已寫入暱稱，請查收驗證信。")
-
             registerSuccess = true
         } catch (e: Exception) {
             Log.e("Register", "register failed", e)
@@ -193,18 +332,37 @@ fun RegisterScreen(navController: NavController) {
         }
     }
 
+    // 玻璃化 TextField 配色（跟 Login 一致，且更清楚）
+    val glassFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        cursorColor = Color.White.copy(alpha = 0.95f),
+
+        focusedLabelColor = Color.White.copy(alpha = 0.90f),
+        unfocusedLabelColor = Color.White.copy(alpha = 0.78f),
+
+        focusedBorderColor = Color.White.copy(alpha = 0.65f),
+        unfocusedBorderColor = Color.White.copy(alpha = 0.38f),
+
+        focusedLeadingIconColor = Color.White.copy(alpha = 0.90f),
+        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
+        focusedTrailingIconColor = Color.White.copy(alpha = 0.90f),
+        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
+
+        focusedContainerColor = Color.White.copy(alpha = 0.16f),
+        unfocusedContainerColor = Color.White.copy(alpha = 0.12f),
+        errorContainerColor = Color.White.copy(alpha = 0.12f)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgDark)
             .systemBarsPadding()
             .imePadding()
     ) {
-        // 上層兩顆球 + 爆白動畫
-        AnimatedGradientBackground(
-            modifier = Modifier.matchParentSize(),
-            successProgress = successProgress
-        )
-        // 只留底部光暈，不畫波浪，避免中間那條線
+
+        // 底部微光暈（保留但更乾淨）
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue,
@@ -223,7 +381,7 @@ fun RegisterScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = "返回",
-                                tint = Color(0xFF334155)
+                                tint = Color.White.copy(alpha = 0.92f)
                             )
                         }
                     },
@@ -243,27 +401,32 @@ fun RegisterScreen(navController: NavController) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(Modifier.height(topOffset))
+
                 Text(
                     "歡迎註冊",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color(0xFF0F172A)
+                    color = Color.White
                 )
                 Text(
                     "請依序填寫欄位",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF475569)
+                    color = Color.White.copy(alpha = 0.70f)
                 )
                 Spacer(Modifier.height(20.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 2.dp,
-                    shadowElevation = 8.dp,
-                    color = Color.White.copy(alpha = 0.92f),
-                    modifier = Modifier.fillMaxWidth()
+                // ✅ 把原本 Surface 改成液態玻璃卡片
+                LiquidGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerDp = 26.dp,
+                    shadowDp = 16.dp,
+                    frostAlpha = 0.24f,
+                    borderAlpha = 0.40f,
+                    innerBorderAlpha = 0.16f,
+                    noiseAlpha = 0.035f,
+                    contentPadding = 16.dp
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                        modifier = Modifier.wrapContentHeight(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
@@ -273,8 +436,9 @@ fun RegisterScreen(navController: NavController) {
                             leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
                             singleLine = true,
                             isError = fieldErrorEmail != null,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = glassFieldColors
                         )
                         AnimatedVisibility(visible = fieldErrorEmail != null) {
                             Text(
@@ -289,7 +453,7 @@ fun RegisterScreen(navController: NavController) {
                             enter = fadeIn() + expandVertically(),
                             exit = fadeOut() + shrinkVertically()
                         ) {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 OutlinedTextField(
                                     value = nickname,
                                     onValueChange = { nickname = it; fieldErrorNickname = null },
@@ -297,8 +461,9 @@ fun RegisterScreen(navController: NavController) {
                                     leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                                     singleLine = true,
                                     isError = fieldErrorNickname != null,
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = glassFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorNickname != null) {
                                     Text(
@@ -315,7 +480,7 @@ fun RegisterScreen(navController: NavController) {
                             enter = fadeIn() + expandVertically(),
                             exit = fadeOut() + shrinkVertically()
                         ) {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 OutlinedTextField(
                                     value = password,
                                     onValueChange = { password = it; fieldErrorPassword = null },
@@ -325,14 +490,14 @@ fun RegisterScreen(navController: NavController) {
                                     isError = fieldErrorPassword != null,
                                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
-                                        val icon =
-                                            if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                        val icon = if (showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                                         IconButton(onClick = { showPassword = !showPassword }) {
                                             Icon(imageVector = icon, contentDescription = null)
                                         }
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = glassFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorPassword != null) {
                                     Text(
@@ -349,7 +514,7 @@ fun RegisterScreen(navController: NavController) {
                             enter = fadeIn() + expandVertically(),
                             exit = fadeOut() + shrinkVertically()
                         ) {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 OutlinedTextField(
                                     value = passwordConfirmation,
                                     onValueChange = { passwordConfirmation = it; fieldErrorConfirm = null },
@@ -359,14 +524,14 @@ fun RegisterScreen(navController: NavController) {
                                     isError = fieldErrorConfirm != null,
                                     visualTransformation = if (showPassword2) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
-                                        val icon =
-                                            if (showPassword2) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                        val icon = if (showPassword2) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                                         IconButton(onClick = { showPassword2 = !showPassword2 }) {
                                             Icon(imageVector = icon, contentDescription = null)
                                         }
                                     },
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = glassFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorConfirm != null) {
                                     Text(
@@ -389,12 +554,15 @@ fun RegisterScreen(navController: NavController) {
                                         checked = agreeTos,
                                         onCheckedChange = { agreeTos = it },
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = PrimaryBlue,
-                                            checkmarkColor = Color.White,
-                                            uncheckedColor = Color.Gray
+                                            checkedColor = Color.White.copy(alpha = 0.92f),
+                                            checkmarkColor = Color.Black,
+                                            uncheckedColor = Color.White.copy(alpha = 0.55f)
                                         )
                                     )
-                                    Text("我同意服務條款", color = Color(0xFF334155))
+                                    Text(
+                                        "我同意服務條款",
+                                        color = Color.White.copy(alpha = 0.90f)
+                                    )
                                 }
 
                                 Button(
@@ -413,9 +581,9 @@ fun RegisterScreen(navController: NavController) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(52.dp),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(18.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = PrimaryBlue,
+                                        containerColor = PrimaryBlue.copy(alpha = 0.88f),
                                         contentColor = Color.White
                                     )
                                 ) {
@@ -436,11 +604,11 @@ fun RegisterScreen(navController: NavController) {
                     }
                 }
 
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(18.dp))
                 Text(
                     "Power By ZiyanGZiyaNG",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Black
+                    color = Color.White.copy(alpha = 0.55f)
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -454,14 +622,15 @@ private fun BottomDecorBackground(
     tint: Color = PrimaryBlue,
     successProgress: Float = 0f
 ) {
-    val infinite = rememberInfiniteTransition()
+    val infinite = rememberInfiniteTransition(label = "register_bottom")
     val drift by infinite.animateFloat(
         initialValue = -12f,
         targetValue = 12f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 9000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "register_drift"
     )
 
     val alphaFactor = 1f - successProgress

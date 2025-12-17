@@ -1,35 +1,129 @@
 package com.example.amicitia.ui.menu.home
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.amicitia.R
 import com.example.amicitia.SportStats
 import com.example.amicitia.SportsRepository
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlin.random.Random
+
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
+
+/* ---------------- 背景（與 Login / Register 完全一致） ---------------- */
+
+@Composable
+private fun AuthBackground(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.background(BgDark)
+    ) {
+        BottomDecorBackground(
+            modifier = Modifier.matchParentSize(),
+            tint = PrimaryBlue
+        )
+    }
+}
+
+@Composable
+private fun BottomDecorBackground(
+    modifier: Modifier = Modifier,
+    tint: Color
+) {
+    Canvas(modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tint.copy(alpha = 0.14f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.5f, h * 0.88f),
+                radius = h * 0.75f
+            )
+        )
+    }
+}
+
+/* ---------------- 液態玻璃卡片（同 Login / Register） ---------------- */
+
+@Composable
+private fun LiquidGlassCard(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = 24.dp,
+    contentPadding: Dp = 16.dp,
+    content: @Composable RowScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(cornerDp)
+
+    Row(
+        modifier = modifier
+            .shadow(14.dp, shape, clip = false)
+            .clip(shape)
+            .drawBehind {
+                val r = cornerDp.toPx()
+
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.22f),
+                    cornerRadius = CornerRadius(r, r)
+                )
+
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.22f),
+                            Color.Transparent
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height)
+                    ),
+                    cornerRadius = CornerRadius(r, r)
+                )
+
+                repeat(80) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.03f),
+                        radius = Random.nextFloat() * 1.5f + 0.5f,
+                        center = Offset(
+                            Random.nextFloat() * size.width,
+                            Random.nextFloat() * size.height
+                        )
+                    )
+                }
+            }
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+/* ---------------- 資料結構 ---------------- */
 
 data class SportMeta(
     val key: String,
@@ -37,14 +131,14 @@ data class SportMeta(
     val icon: Painter
 )
 
+/* ---------------- 主畫面 ---------------- */
+
 @Composable
 fun HomeRoute(
     onSportSelected: (String) -> Unit
 ) {
     val repo = remember { SportsRepository() }
     val uid = Firebase.auth.currentUser?.uid
-
-    // sportKey -> SportStats（從 Firebase 抓回來塞這裡）
     var statsMap by remember { mutableStateOf<Map<String, SportStats>>(emptyMap()) }
 
     val sports = listOf(
@@ -58,97 +152,84 @@ fun HomeRoute(
 
     LaunchedEffect(uid) {
         uid ?: return@LaunchedEffect
-
-        try {
-            // 保證 /users/{uid}/sports/ 底下一定有六個運動
-            repo.ensureAllSportsExist(uid)
-
-            val result = mutableMapOf<String, SportStats>()
-            for (sport in sports) {
-                val stats = repo.getSportStats(uid, sport.key)
-                result[sport.key] = stats
-            }
-            statsMap = result
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        repo.ensureAllSportsExist(uid)
+        statsMap = sports.associate { it.key to repo.getSportStats(uid, it.key) }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 8.dp),
+            .systemBarsPadding()
     ) {
-        Text(
-            text = "選擇你的運動",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        AuthBackground(Modifier.fillMaxSize())
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
         ) {
-            items(sports) { sport ->
-                val score = statsMap[sport.key]?.totalScore?.toInt() ?: 1000
+            Spacer(Modifier.height(16.dp))
 
-                SportCard(
-                    icon = sport.icon,
-                    name = sport.name,
-                    score = score,
-                    onClick = { onSportSelected(sport.key) }
-                )
+            Text(
+                text = "選擇你的運動",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(sports) { sport ->
+                    val score = statsMap[sport.key]?.totalScore?.toInt() ?: 1000
+
+                    SportCard(
+                        icon = sport.icon,
+                        name = sport.name,
+                        score = score,
+                        onClick = { onSportSelected(sport.key) }
+                    )
+                }
             }
         }
     }
 }
 
+/* ---------------- 單一運動卡片 ---------------- */
+
 @Composable
-fun SportCard(
+private fun SportCard(
     icon: Painter,
     name: String,
     score: Int,
     onClick: () -> Unit
 ) {
-    Surface(
-        color = Color.White,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
-        shape = MaterialTheme.shapes.large,
+    LiquidGlassCard(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
             .fillMaxWidth()
-            .height(96.dp),
-        onClick = onClick
+            .height(96.dp)
+            .clickable { onClick() }
     ) {
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = icon,
-                contentDescription = name,
-                tint = Color.Black,
-                modifier = Modifier.height(48.dp)
-            )
+        Icon(
+            painter = icon,
+            contentDescription = name,
+            tint = Color.White,
+            modifier = Modifier.size(44.dp)
+        )
 
+        Spacer(Modifier.width(16.dp))
+
+        Column {
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 16.dp),
-                color = Color(0xFF111827)
+                color = Color.White
             )
-
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
-
             Text(
                 text = "分數 $score",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF6B7280)
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.65f)
             )
         }
     }
