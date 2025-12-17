@@ -1,16 +1,20 @@
 package com.example.amicitia
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.AppNavHost
+import com.example.amicitia.session.SessionPresence
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import android.util.Log
 
 class MainActivity : ComponentActivity() {
 
@@ -18,6 +22,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // App 前景/背景：唯一的 presence 控制點
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                val uid = auth.currentUser?.uid
+                Log.d("Presence", "Process onStart uid=$uid")
+                if (uid != null) SessionPresence.start(uid)
+            }
+
+            override fun onStop(owner: LifecycleOwner) {
+                Log.d("Presence", "Process onStop -> stop presence")
+                SessionPresence.stop()
+            }
+        })
 
         setContent {
             Surface(color = MaterialTheme.colorScheme.background) {
@@ -29,7 +47,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        val uid = auth.currentUser?.uid
-        Log.d("Presence", "onStart uid = $uid")
+        Log.d("Presence", "Activity onStart uid = ${auth.currentUser?.uid}")
     }
 }

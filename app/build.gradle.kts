@@ -67,6 +67,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    implementation("androidx.lifecycle:lifecycle-process:2.7.0")
 
     /* -------------------- Firebase -------------------- */
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))

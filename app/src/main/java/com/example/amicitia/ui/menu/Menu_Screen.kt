@@ -27,7 +27,6 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -44,7 +43,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
-import com.example.amicitia.presence.PresenceManager
 import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
@@ -118,23 +116,15 @@ fun MenuScreen(outerNavController: NavController) {
     val innerNav: NavHostController = rememberNavController()
 
     val auth = Firebase.auth
-    val uid = auth.currentUser?.uid
 
-    // ✅ RTDB 版 PresenceManager：只需要 uid，不要再傳 Firestore db
-    val presenceManager = remember(uid) { if (uid != null) PresenceManager(uid) else null }
-
-    // ✅ 進入 Menu 就 start；離開 Menu 就 stop（先讓它跑起來）
-    DisposableEffect(uid) {
-        presenceManager?.start(showOnline = true)
-        onDispose { presenceManager?.stop() }
-    }
-
-    val handleLogout: () -> Unit = {
-        presenceManager?.stop()
-        auth.signOut()
-        outerNavController.navigate(Routes.LOGIN) {
-            popUpTo(outerNavController.graph.startDestinationId) { inclusive = true }
-            launchSingleTop = true
+    val handleLogout: () -> Unit = remember {
+        {
+            // Presence 不在這裡管；由 MainActivity 的 ProcessLifecycleOwner 管
+            auth.signOut()
+            outerNavController.navigate(Routes.LOGIN) {
+                popUpTo(outerNavController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -149,7 +139,6 @@ fun MenuScreen(outerNavController: NavController) {
             containerColor = Color.Transparent,
             bottomBar = { BottomBar(innerNav) }
         ) { innerPadding ->
-            // Map 這頁要滿版，所以不要吃 innerPadding
             val route = currentRoute(innerNav)
             val contentModifier =
                 if (route == MenuTabs.MAP) Modifier.fillMaxSize()
@@ -189,7 +178,6 @@ private fun MenuNavHost(
         }
 
         composable(MenuTabs.MAP) { MapRoute() }
-
         composable(MenuTabs.CHAT) { ChatRoute() }
 
         composable(MenuTabs.PROFILE) {
@@ -225,7 +213,7 @@ private fun BottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
 
     Surface(
-        color = Color.White, // 不透明：bar 底下不要透出背景
+        color = Color.White,
         tonalElevation = 12.dp,
         shadowElevation = 16.dp,
         shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
