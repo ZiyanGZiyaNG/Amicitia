@@ -53,7 +53,6 @@ import com.example.amicitia.ui.menu.home.run.RunSoloScreen
 import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
 private val PrimaryPurple = Color(0xFF4F46E5)
@@ -119,13 +118,14 @@ fun MenuScreen(outerNavController: NavController) {
     val innerNav: NavHostController = rememberNavController()
 
     val auth = Firebase.auth
-    val db = Firebase.firestore
     val uid = auth.currentUser?.uid
 
-    val presenceManager = remember(uid) { if (uid != null) PresenceManager(uid, db) else null }
+    // ✅ RTDB 版 PresenceManager：只需要 uid，不要再傳 Firestore db
+    val presenceManager = remember(uid) { if (uid != null) PresenceManager(uid) else null }
 
+    // ✅ 進入 Menu 就 start；離開 Menu 就 stop（先讓它跑起來）
     DisposableEffect(uid) {
-        presenceManager?.start()
+        presenceManager?.start(showOnline = true)
         onDispose { presenceManager?.stop() }
     }
 

@@ -73,6 +73,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
 
     /* -------------------- Coroutine / DataStore -------------------- */
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
@@ -90,4 +91,5 @@ dependencies {
 
     /* -------------------- Google Sign-In（若你有用） -------------------- */
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+
 }

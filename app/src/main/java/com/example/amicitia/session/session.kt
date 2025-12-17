@@ -1,26 +1,21 @@
 package com.example.amicitia.session
 
 import com.example.amicitia.presence.PresenceManager
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 
-object Session {
-    private var presence: PresenceManager? = null
+object SessionPresence {
+    private var manager: PresenceManager? = null
+    private var currentUid: String? = null
 
-    fun startPresence(uid: String) {
-        if (presence == null) {
-            presence = PresenceManager(uid, Firebase.firestore)
-        }
-        presence?.start()
+    fun start(uid: String) {
+        if (currentUid == uid && manager != null) return
+        stop()
+        currentUid = uid
+        manager = PresenceManager(uid).also { it.start() }
     }
 
-    suspend fun stopPresenceAndAwait() {
-        presence?.stopAndAwait()
-        presence = null
-    }
-
-    fun stopPresence() {
-        presence?.stop()
-        presence = null
+    fun stop() {
+        manager?.stop()
+        manager = null
+        currentUid = null
     }
 }
