@@ -82,7 +82,6 @@ private fun AnimatedGradientBackground(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.drawBehind {
             val minDim = size.minDimension
-
             drawCircle(
                 color = Color(0x667C3AED),
                 radius = minDim * 0.45f * pulse,
@@ -91,7 +90,6 @@ private fun AnimatedGradientBackground(modifier: Modifier = Modifier) {
                     y = size.height * (0.12f + drift * 0.5f)
                 )
             )
-
             drawCircle(
                 color = Color(0x664F46E5),
                 radius = minDim * 0.55f * pulse,
@@ -114,12 +112,10 @@ private object MenuTabs {
 @Composable
 fun MenuScreen(outerNavController: NavController) {
     val innerNav: NavHostController = rememberNavController()
-
     val auth = Firebase.auth
 
     val handleLogout: () -> Unit = remember {
         {
-            // Presence 不在這裡管；由 MainActivity 的 ProcessLifecycleOwner 管
             auth.signOut()
             outerNavController.navigate(Routes.LOGIN) {
                 popUpTo(outerNavController.graph.startDestinationId) { inclusive = true }

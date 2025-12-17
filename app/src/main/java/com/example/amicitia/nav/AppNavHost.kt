@@ -14,7 +14,7 @@ import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
 import com.example.amicitia.ui.register.RegisterScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.example.amicitia.ui.menu.map.MapScreen
+import com.example.amicitia.ui.menu.home.run.RunSessionScreen
 import com.google.firebase.ktx.Firebase
 
 object Routes {
@@ -62,5 +62,9 @@ fun AppNavHost(
         composable(Routes.NOTIFY)   { NotifyScreen(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
         composable(Routes.ABOUT)    { AboutUsScreen(navController) }
+        composable("run_session/{sessionId}") { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+            RunSessionScreen(navController = navController, sessionId = sessionId)
+        }
     }
 }

@@ -23,7 +23,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // App 前景/背景：唯一的 presence 控制點
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 val uid = auth.currentUser?.uid
@@ -47,6 +46,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        Log.d("Presence", "Activity onStart uid = ${auth.currentUser?.uid}")
+        val uid = auth.currentUser?.uid
+        Log.d("Presence", "Activity onStart uid = $uid")
     }
 }
