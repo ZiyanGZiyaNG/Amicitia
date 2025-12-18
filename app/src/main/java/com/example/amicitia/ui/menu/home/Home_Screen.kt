@@ -34,8 +34,6 @@ import kotlin.random.Random
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-/* ---------------- 背景（與 Login / Register 完全一致） ---------------- */
-
 @Composable
 private fun AuthBackground(
     modifier: Modifier = Modifier
@@ -71,7 +69,6 @@ private fun BottomDecorBackground(
     }
 }
 
-/* ---------------- 液態玻璃卡片（同 Login / Register） ---------------- */
 
 @Composable
 private fun LiquidGlassCard(
@@ -123,15 +120,12 @@ private fun LiquidGlassCard(
     )
 }
 
-/* ---------------- 資料結構 ---------------- */
-
 data class SportMeta(
     val key: String,
     val name: String,
     val icon: Painter
 )
 
-/* ---------------- 主畫面 ---------------- */
 
 @Composable
 fun HomeRoute(
@@ -196,8 +190,6 @@ fun HomeRoute(
     }
 }
 
-/* ---------------- 單一運動卡片 ---------------- */
-
 @Composable
 private fun SportCard(
     icon: Painter,
@@ -214,7 +206,7 @@ private fun SportCard(
         Icon(
             painter = icon,
             contentDescription = name,
-            tint = Color.White,
+            tint = Color(0xFF3F51B5),
             modifier = Modifier.size(44.dp)
         )
 
