@@ -96,12 +96,7 @@ import kotlin.random.Random
 private val PrimaryBlue = Color(0xFF3F51B5)
 private val BgDark = Color(0xFF1E1E1E)
 
-/**
- * ✅ 讓 Login 背景「跟 Register 一模一樣」：
- * 1) 只有 BgDark
- * 2) 同一個 BottomDecorBackground（底部微光暈）
- * 3) 不做任何白色爆光覆蓋（避免看起來比較亮）
- */
+
 @Composable
 private fun AuthBackground(
     modifier: Modifier = Modifier,
@@ -155,9 +150,7 @@ private fun BottomDecorBackground(
     }
 }
 
-/**
- * 液態玻璃卡片（與你 Register 的版本一致）
- */
+
 @Composable
 private fun LiquidGlassCard(
     modifier: Modifier = Modifier,
@@ -388,11 +381,10 @@ fun LoginScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgDark) // ✅ 和 Register 一樣：背景直接在最外層 Box
+            .background(BgDark)
             .systemBarsPadding()
             .imePadding()
     ) {
-        // ✅ 和 Register 一樣：背景內容（BgDark + 底部光暈）
         AuthBackground(
             modifier = Modifier.matchParentSize(),
             successProgress = successProgress

@@ -1,38 +1,39 @@
 package com.example.amicitia.ui.menu
 
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -53,54 +54,8 @@ import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
-private val PrimaryPurple = Color(0xFF4F46E5)
-
-@Composable
-private fun AnimatedGradientBackground(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "menu_bg")
-
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "menu_pulse"
-    )
-
-    val drift by infiniteTransition.animateFloat(
-        initialValue = -0.04f,
-        targetValue = 0.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "menu_drift"
-    )
-
-    Box(
-        modifier = modifier.drawBehind {
-            val minDim = size.minDimension
-            drawCircle(
-                color = Color(0x667C3AED),
-                radius = minDim * 0.45f * pulse,
-                center = Offset(
-                    x = size.width * (0.0f + drift),
-                    y = size.height * (0.12f + drift * 0.5f)
-                )
-            )
-            drawCircle(
-                color = Color(0x664F46E5),
-                radius = minDim * 0.55f * pulse,
-                center = Offset(
-                    x = size.width * (1.15f - drift * 0.5f),
-                    y = size.height * (0.95f - drift)
-                )
-            )
-        }
-    )
-}
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
 
 private object MenuTabs {
     const val HOME = "menu_home"
@@ -108,6 +63,57 @@ private object MenuTabs {
     const val CHAT = "menu_chat"
     const val PROFILE = "menu_profile"
 }
+
+private data class BottomItem(val route: String, val icon: ImageVector, val label: String)
+
+private val bottomItems = listOf(
+    BottomItem(MenuTabs.HOME, Icons.Outlined.Home, "首頁"),
+    BottomItem(MenuTabs.MAP, Icons.Outlined.Map, "地圖"),
+    BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
+    BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
+)
+
+/* ---------------- Background（跟 Register 一樣：BgDark + 底部光暈） ---------------- */
+
+@Composable
+private fun AuthBackground(
+    modifier: Modifier = Modifier,
+    successProgress: Float = 0f
+) {
+    Box(
+        modifier = modifier.background(BgDark)
+    ) {
+        BottomDecorBackground(
+            modifier = Modifier.matchParentSize(),
+            tint = PrimaryBlue,
+            alphaFactor = 1f - successProgress
+        )
+    }
+}
+
+@Composable
+private fun BottomDecorBackground(
+    modifier: Modifier = Modifier,
+    tint: Color,
+    alphaFactor: Float = 1f
+) {
+    Canvas(modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tint.copy(alpha = 0.14f * alphaFactor),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.5f, h * 0.88f),
+                radius = h * 0.75f
+            )
+        )
+    }
+}
+
+/* ---------------- MenuScreen ---------------- */
 
 @Composable
 fun MenuScreen(outerNavController: NavController) {
@@ -129,11 +135,11 @@ fun MenuScreen(outerNavController: NavController) {
             .fillMaxSize()
             .systemBarsPadding()
     ) {
-        AnimatedGradientBackground(modifier = Modifier.matchParentSize())
+        AuthBackground(modifier = Modifier.matchParentSize())
 
         Scaffold(
             containerColor = Color.Transparent,
-            bottomBar = { BottomBar(innerNav) }
+            bottomBar = { GlassBottomBar(navController = innerNav) }
         ) { innerPadding ->
             val route = currentRoute(innerNav)
             val contentModifier =
@@ -149,6 +155,8 @@ fun MenuScreen(outerNavController: NavController) {
         }
     }
 }
+
+/* ---------------- NavHost ---------------- */
 
 @Composable
 private fun MenuNavHost(
@@ -195,55 +203,112 @@ private fun currentRoute(navController: NavHostController): String? {
     return entry?.destination?.route
 }
 
-private data class BottomItem(val route: String, val icon: ImageVector, val label: String)
-
-private val bottomItems = listOf(
-    BottomItem(MenuTabs.HOME, Icons.Outlined.Home, "首頁"),
-    BottomItem(MenuTabs.MAP, Icons.Outlined.Map, "地圖"),
-    BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
-    BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
-)
+/* ---------------- BottomBar：模糊只在底層，Icon 永遠清楚 ---------------- */
 
 @Composable
-private fun BottomBar(navController: NavHostController) {
+private fun GlassBottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
+    val pillShape = RoundedCornerShape(28.dp)
 
-    Surface(
-        color = Color.White,
-        tonalElevation = 12.dp,
-        shadowElevation = 16.dp,
-        shape = MaterialTheme.shapes.large.copy(all = CornerSize(24.dp)),
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        NavigationBar(
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp,
-            modifier = Modifier.height(52.dp).padding(horizontal = 8.dp)
+        // 外殼：只負責陰影與裁切
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .shadow(18.dp, pillShape, clip = false)
+                .clip(pillShape)
         ) {
-            bottomItems.forEach { item ->
-                val selected = route == item.route
-
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = {
-                        if (item.route == MenuTabs.HOME) {
-                            navController.popBackStack(MenuTabs.HOME, inclusive = false)
-                        } else {
-                            navController.navigate(item.route) {
-                                launchSingleTop = true
-                                popUpTo(MenuTabs.HOME) { saveState = true }
-                                restoreState = true
+            // ✅ 1) 底層背景板（這層才 blur，裡面不要放 icon/文字）
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            Modifier.graphicsLayer {
+                                renderEffect = RenderEffect
+                                    .createBlurEffect(30f, 30f, Shader.TileMode.CLAMP)
+                                    .asComposeRenderEffect()
                             }
-                        }
-                    },
-                    icon = { AnimatedIcon(selected, item.icon, item.label) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = PrimaryPurple,
-                        unselectedIconColor = Color(0xFF64748B),
-                        indicatorColor = Color.Transparent
-                    ),
-                    alwaysShowLabel = false
-                )
+                        } else Modifier
+                    )
+                    .drawBehind {
+                        val r = 28.dp.toPx()
+
+                        // 霧面底
+                        drawRoundRect(
+                            color = Color.White.copy(alpha = 0.14f),
+                            cornerRadius = CornerRadius(r, r)
+                        )
+
+                        // 斜向高光
+                        drawRoundRect(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.20f),
+                                    Color.Transparent
+                                ),
+                                start = Offset(0f, 0f),
+                                end = Offset(size.width, size.height)
+                            ),
+                            cornerRadius = CornerRadius(r, r)
+                        )
+
+                        // 底部厚度
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.18f)
+                                ),
+                                startY = size.height * 0.25f,
+                                endY = size.height
+                            ),
+                            cornerRadius = CornerRadius(r, r)
+                        )
+                    }
+                    .border(1.dp, Color.White.copy(alpha = 0.28f), pillShape)
+                    .padding(1.dp)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), pillShape)
+            )
+
+            // ✅ 2) 上層內容（完全不 blur，所以 icon 不會糊）
+            NavigationBar(
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp,
+                modifier = Modifier.matchParentSize()
+            ) {
+                bottomItems.forEach { item ->
+                    val selected = route == item.route
+
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            if (item.route == MenuTabs.HOME) {
+                                navController.popBackStack(MenuTabs.HOME, inclusive = false)
+                            } else {
+                                navController.navigate(item.route) {
+                                    launchSingleTop = true
+                                    popUpTo(MenuTabs.HOME) { saveState = true }
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { AnimatedIcon(selected, item.icon, item.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = PrimaryBlue,
+                            unselectedIconColor = Color.White.copy(alpha = 0.78f),
+                            indicatorColor = Color.White.copy(alpha = 0.10f)
+                        ),
+                        alwaysShowLabel = false
+                    )
+                }
             }
         }
     }
@@ -261,6 +326,6 @@ private fun AnimatedIcon(selected: Boolean, icon: ImageVector, contentDescriptio
         imageVector = icon,
         contentDescription = contentDescription,
         modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-        tint = if (selected) PrimaryPurple else Color(0xFF64748B)
+        tint = if (selected) PrimaryBlue else Color.White.copy(alpha = 0.78f)
     )
 }
