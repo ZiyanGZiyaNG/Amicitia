@@ -1,21 +1,76 @@
 package com.example.amicitia.ui.menu.profile.settings
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +83,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlin.math.PI
 import kotlin.math.cos
+
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
+private val TitleText = Color.White.copy(alpha = 0.92f)
+private val BodyText = Color.White.copy(alpha = 0.82f)
+private val MutedText = Color.White.copy(alpha = 0.62f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +112,6 @@ fun PrivacyScreen(
     var isSaving by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    val mainButtonColor = Color(0xFF3F51B5)
-    val lightBorderColor = Color(0xFF3F51B5)
 
     LaunchedEffect(uid) {
         if (uid != null) {
@@ -81,11 +139,14 @@ fun PrivacyScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(BgDark)
             .systemBarsPadding()
     ) {
-        AnimatedGradientBackground(modifier = Modifier.matchParentSize())
+        DarkGlowBackground(modifier = Modifier.matchParentSize())
 
         Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -94,21 +155,24 @@ fun PrivacyScreen(
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 18.sp
-                            )
+                            ),
+                            color = TitleText
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = TitleText
+                            )
                         }
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = Color.Transparent
                     )
                 )
-            },
-            containerColor = Color.Transparent,
-            snackbarHost = { SnackbarHost(snackbar) }
+            }
         ) { innerPadding ->
             if (isLoading) {
                 Box(
@@ -117,7 +181,7 @@ fun PrivacyScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = mainButtonColor)
+                    CircularProgressIndicator(color = PrimaryBlue)
                 }
             } else {
                 Column(
@@ -125,34 +189,32 @@ fun PrivacyScreen(
                         .padding(innerPadding)
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    SettingCard(title = "可見度設定") {
-                        SettingSwitch(
+                    GlassSettingCard(title = "可見度設定") {
+                        SettingSwitchRow(
                             title = "顯示上線狀態",
                             desc = "讓好友知道你目前是否在線上",
                             checked = showOnline,
-                            onCheckedChange = { showOnline = it },
-                            color = mainButtonColor
+                            onCheckedChange = { showOnline = it }
                         )
-                        SettingSwitch(
+                        SettingSwitchRow(
                             title = "允許好友邀請",
                             desc = "允許其他使用者傳送好友邀請給你",
                             checked = allowFriendRequests,
-                            onCheckedChange = { allowFriendRequests = it },
-                            color = mainButtonColor
+                            onCheckedChange = { allowFriendRequests = it }
                         )
-                        SettingSwitch(
+                        SettingSwitchRow(
                             title = "分享活動紀錄",
                             desc = "將你的運動與活動分享在動態牆",
                             checked = shareActivity,
-                            onCheckedChange = { shareActivity = it },
-                            color = mainButtonColor
+                            onCheckedChange = { shareActivity = it }
                         )
                     }
 
-                    SettingCard(title = "個人資料可見度") {
+                    GlassSettingCard(title = "個人資料可見度") {
                         ExposedDropdownMenuBox(
                             expanded = expanded,
                             onExpandedChange = { expanded = !expanded }
@@ -164,22 +226,32 @@ fun PrivacyScreen(
                                 label = {
                                     Text(
                                         "誰可以看到你的個人資料",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 12.sp
-                                        )
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = MutedText
                                     )
                                 },
                                 trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                    ExposedDropdownMenuDefaults.TrailingIcon(
+                                        expanded = expanded
+                                    )
                                 },
                                 modifier = Modifier
-                                    .fillMaxWidth(),
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = mainButtonColor,
-                                    unfocusedBorderColor = lightBorderColor,
-                                    focusedLabelColor = mainButtonColor,
-                                    cursorColor = mainButtonColor
+                                    focusedTextColor = BodyText,
+                                    unfocusedTextColor = BodyText,
+                                    focusedContainerColor = Color.White.copy(alpha = 0.06f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
+                                    disabledContainerColor = Color.White.copy(alpha = 0.06f),
+                                    cursorColor = PrimaryBlue,
+                                    focusedBorderColor = PrimaryBlue.copy(alpha = 0.85f),
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
+                                    focusedLabelColor = PrimaryBlue,
+                                    unfocusedLabelColor = MutedText,
+                                    focusedTrailingIconColor = PrimaryBlue,
+                                    unfocusedTrailingIconColor = MutedText
                                 )
                             )
 
@@ -187,12 +259,12 @@ fun PrivacyScreen(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false },
                                 shape = RoundedCornerShape(18.dp),
-                                containerColor = Color(0xFFF6F7FF),
-                                tonalElevation = 2.dp,
-                                shadowElevation = 12.dp
+                                containerColor = Color(0xFF242424),
+                                tonalElevation = 0.dp,
+                                shadowElevation = 18.dp
                             ) {
                                 visibilityOptions.forEach { option ->
-                                    FancyDropdownItem(
+                                    FancyDropdownItemDark(
                                         text = option,
                                         selected = option == profileVisibility,
                                         onClick = {
@@ -205,12 +277,13 @@ fun PrivacyScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(32.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = {
                             if (uid == null || isSaving) return@Button
                             isSaving = true
+
                             val visibilityKey = when (profileVisibility) {
                                 "僅好友" -> "friends"
                                 "僅自己" -> "private"
@@ -233,21 +306,19 @@ fun PrivacyScreen(
                                     isSaving = false
                                 }
                                 .addOnFailureListener { e ->
-                                    scope.launch {
-                                        snackbar.showSnackbar("儲存失敗：${e.message ?: "未知錯誤"}")
-                                    }
+                                    scope.launch { snackbar.showSnackbar("儲存失敗：${e.message ?: "未知錯誤"}") }
                                     isSaving = false
                                 }
                         },
                         enabled = !isSaving,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .fillMaxWidth(0.7f),
+                            .fillMaxWidth(0.72f),
                         shape = RoundedCornerShape(28.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = mainButtonColor,
+                            containerColor = PrimaryBlue,
                             contentColor = Color.White,
-                            disabledContainerColor = mainButtonColor.copy(alpha = 0.5f),
+                            disabledContainerColor = PrimaryBlue.copy(alpha = 0.55f),
                             disabledContentColor = Color.White.copy(alpha = 0.8f)
                         )
                     ) {
@@ -258,10 +329,7 @@ fun PrivacyScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text(
-                                text = "儲存設定",
-                                style = MaterialTheme.typography.labelLarge
-                            )
+                            Text("儲存設定", style = MaterialTheme.typography.labelLarge)
                         }
                     }
 
@@ -272,22 +340,20 @@ fun PrivacyScreen(
     }
 }
 
+/* -------------------- 下拉選單：暗色版本 -------------------- */
 @Composable
-private fun FancyDropdownItem(
+private fun FancyDropdownItemDark(
     text: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val highlight = Color(0xFFE7ECFF)
-    val content = MaterialTheme.colorScheme.onSurface
+    val itemText = if (selected) TitleText else BodyText
     DropdownMenuItem(
         text = {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp
-                ),
-                color = if (selected) content.copy(alpha = 0.95f) else content.copy(alpha = 0.88f)
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = itemText
             )
         },
         onClick = onClick,
@@ -296,37 +362,66 @@ private fun FancyDropdownItem(
                 Icon(
                     imageVector = Icons.Rounded.Check,
                     contentDescription = null,
-                    tint = Color(0xFF6B57B2).copy(alpha = 0.8f)
+                    tint = PrimaryBlue.copy(alpha = 0.90f)
                 )
             }
         },
         colors = MenuDefaults.itemColors(
-            textColor = content,
-            leadingIconColor = content
+            textColor = itemText,
+            leadingIconColor = PrimaryBlue
         ),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
     )
-
-    if (selected) {
-        Spacer(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .drawBehind { drawRect(highlight.copy(alpha = 0.5f)) }
-        )
-    }
 }
 
+/* -------------------- 玻璃卡片 -------------------- */
 @Composable
-fun SettingCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun GlassSettingCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(22.dp)
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
+            .drawBehind {
+                val r = 22.dp.toPx()
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.06f),
+                    cornerRadius = CornerRadius(r, r)
+                )
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.14f),
+                            Color.Transparent
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height)
+                    ),
+                    cornerRadius = CornerRadius(r, r)
+                )
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.18f)
+                        ),
+                        startY = size.height * 0.35f,
+                        endY = size.height
+                    ),
+                    cornerRadius = CornerRadius(r, r)
+                )
+            }
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -335,77 +430,89 @@ fun SettingCard(title: String, content: @Composable ColumnScope.() -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface
+                color = TitleText
+            )
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.10f),
+                thickness = 1.dp
             )
             content()
         }
     }
 }
 
+/* -------------------- Switch Row -------------------- */
 @Composable
-fun SettingSwitch(
+private fun SettingSwitchRow(
     title: String,
     desc: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    color: Color
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
-                )
+                ),
+                color = BodyText
             )
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = color,
-                    checkedThumbColor = Color.White
-                )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = MutedText
             )
         }
-        Text(
-            text = desc,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 12.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = PrimaryBlue.copy(alpha = 0.80f),
+                uncheckedThumbColor = Color.White.copy(alpha = 0.85f),
+                uncheckedTrackColor = Color.White.copy(alpha = 0.18f)
+            )
         )
     }
 }
 
+/* -------------------- 背景（暗色光暈） -------------------- */
 @Composable
-private fun AnimatedGradientBackground(
-    modifier: Modifier = Modifier
-) {
-    val infinite = rememberInfiniteTransition()
+private fun DarkGlowBackground(modifier: Modifier = Modifier) {
+    val infinite = rememberInfiniteTransition(label = "dark_glow_privacy")
     val tRaw by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            animation = tween(durationMillis = 5200, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "t"
     )
     val t = (1f - cos(tRaw * PI).toFloat()) / 2f
-    val c1 = lerp(Color(0xFFF3F6FF), Color(0xFFE8F0FF), t)
-    val c2 = lerp(Color(0xFFEAF1FF), Color(0xFFD6E3FF), t)
-    val c3 = lerp(Color(0xFFDDE7FF), Color(0xFFCBD9FF), t)
+    val c1 = lerp(Color(0xFF2A2F45), Color(0xFF20243A), t).copy(alpha = 0.55f)
+    val c2 = lerp(Color(0xFF2A3A5A), Color(0xFF1C2237), t).copy(alpha = 0.48f)
+    val c3 = lerp(Color(0xFF222A40), Color(0xFF161A2A), t).copy(alpha = 0.45f)
 
     Box(
         modifier = modifier.drawBehind {
-            val sx = size.width * (0.15f + 0.35f * t)
-            val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width * (0.85f - 0.35f * t)
-            val ey = size.height * (0.90f - 0.25f * (1f - t))
+            val sx = size.width * (0.18f + 0.30f * t)
+            val sy = size.height * (0.10f + 0.22f * (1f - t))
+            val ex = size.width * (0.82f - 0.30f * t)
+            val ey = size.height * (0.92f - 0.22f * (1f - t))
             drawRect(
                 brush = Brush.linearGradient(
                     colors = listOf(c1, c2, c3),

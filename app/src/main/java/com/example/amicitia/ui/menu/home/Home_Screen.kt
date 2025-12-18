@@ -69,7 +69,6 @@ private fun BottomDecorBackground(
     }
 }
 
-
 @Composable
 private fun LiquidGlassCard(
     modifier: Modifier = Modifier,
@@ -81,20 +80,19 @@ private fun LiquidGlassCard(
 
     Row(
         modifier = modifier
-            .shadow(14.dp, shape, clip = false)
+            // ✅ 修正：陰影跟著圓角裁切，避免中間出現方塊/白白一塊
+            .shadow(14.dp, shape, clip = true)
             .clip(shape)
+            // ✅ 底色用 background 做，避免 drawBehind 疊出矩形感
+            .background(Color.White.copy(alpha = 0.12f))
             .drawBehind {
                 val r = cornerDp.toPx()
 
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.22f),
-                    cornerRadius = CornerRadius(r, r)
-                )
-
+                // 斜向高光
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.22f),
+                            Color.White.copy(alpha = 0.20f),
                             Color.Transparent
                         ),
                         start = Offset(0f, 0f),
@@ -103,9 +101,23 @@ private fun LiquidGlassCard(
                     cornerRadius = CornerRadius(r, r)
                 )
 
+                // 底部厚度（很淡）
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.14f)
+                        ),
+                        startY = size.height * 0.35f,
+                        endY = size.height
+                    ),
+                    cornerRadius = CornerRadius(r, r)
+                )
+
+                // 微粒
                 repeat(80) {
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.03f),
+                        color = Color.White.copy(alpha = 0.025f),
                         radius = Random.nextFloat() * 1.5f + 0.5f,
                         center = Offset(
                             Random.nextFloat() * size.width,
@@ -125,7 +137,6 @@ data class SportMeta(
     val name: String,
     val icon: Painter
 )
-
 
 @Composable
 fun HomeRoute(
@@ -206,7 +217,7 @@ private fun SportCard(
         Icon(
             painter = icon,
             contentDescription = name,
-            tint = Color(0xFF3F51B5),
+            tint = PrimaryBlue,
             modifier = Modifier.size(44.dp)
         )
 

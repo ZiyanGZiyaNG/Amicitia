@@ -49,10 +49,13 @@ fun MapScreen() {
 
     val cameraState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
-            LatLng(25.0330, 121.5654), // 初始台北
+            LatLng(25.0330, 121.5654),
             11f
         )
     }
+
+    // 你要「搜尋列下來一點」就調這個數字
+    val searchTopOffset = 20.dp
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -102,7 +105,7 @@ fun MapScreen() {
             }
         }
 
-        // 搜尋列
+        // 🔽 搜尋列：往下移（調整 searchTopOffset）
         Surface(
             tonalElevation = 6.dp,
             shadowElevation = 8.dp,
@@ -112,7 +115,7 @@ fun MapScreen() {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .statusBarsPadding()
-                .padding(top = 8.dp)
+                .padding(top = searchTopOffset)
         ) {
             TextField(
                 value = query,
@@ -145,7 +148,6 @@ fun MapScreen() {
             )
         }
 
-        // 定位按鈕：真正定位
         FloatingActionButton(
             onClick = {
                 if (!context.isLocationEnabled()) {
@@ -185,7 +187,6 @@ fun MapScreen() {
             )
         }
 
-        // Snackbar（提示）
         snackbarMessage?.let { msg ->
             Box(
                 modifier = Modifier
@@ -212,7 +213,6 @@ private suspend fun moveToCurrentLocation(
     onError: (String) -> Unit
 ): Boolean = withContext(Dispatchers.Main) {
     try {
-        // 1) 先試 lastLocation（最快，但可能為 null）
         val loc = fusedClient.lastLocation.await()
         if (loc != null) {
             val latLng = LatLng(loc.latitude, loc.longitude)
@@ -221,7 +221,6 @@ private suspend fun moveToCurrentLocation(
             return@withContext true
         }
 
-        // 2) 再試 currentLocation（較可靠）
         val cur = fusedClient
             .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .await()
