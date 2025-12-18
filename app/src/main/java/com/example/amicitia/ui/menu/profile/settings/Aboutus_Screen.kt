@@ -1,33 +1,66 @@
 package com.example.amicitia.ui.menu.profile.settings
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.amicitia.R
 import kotlin.math.PI
 import kotlin.math.cos
-import com.example.amicitia.R
+
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
+
+private val TitleText = Color.White.copy(alpha = 0.92f)
+private val BodyText = Color.White.copy(alpha = 0.72f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,16 +73,7 @@ fun AboutUsScreen(
             .fillMaxSize()
             .systemBarsPadding()
     ) {
-        AnimatedGradientBackground(
-            aStart = Color(0xFFF3F6FF),
-            aMid   = Color(0xFFEAF1FF),
-            aEnd   = Color(0xFFDDE7FF),
-            bStart = Color(0xFFE8F0FF),
-            bMid   = Color(0xFFD6E3FF),
-            bEnd   = Color(0xFFCBD9FF),
-            durationMs = 4000,
-            modifier = Modifier.matchParentSize()
-        )
+        AuthBackground(Modifier.matchParentSize())
 
         Scaffold(
             topBar = {
@@ -60,19 +84,23 @@ fun AboutUsScreen(
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.SemiBold
-                            )
+                            ),
+                            color = TitleText
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "返回"
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = TitleText
                             )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent
+                        containerColor = Color.Transparent,
+                        titleContentColor = TitleText,
+                        navigationIconContentColor = TitleText
                     )
                 )
             },
@@ -85,21 +113,17 @@ fun AboutUsScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 介紹段落
                 item {
                     Text(
                         text = "我們是一群高中生，彼此都喜愛著寫程式和各種競賽。" +
                                 "這個 Amicitia 的企劃發想是從 2025 年暑假的某一場黑客松所誕生的想法。" +
                                 "雖然那次比賽我們沒獲得評審青睞，但我們仍覺得這個創意很有意義，" +
                                 "因此在賽後決定把這個專案實作出來。",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 14.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                        color = BodyText
                     )
                 }
 
-                // 小標題：開發者們
                 item {
                     Text(
                         text = "開發者們",
@@ -107,13 +131,17 @@ fun AboutUsScreen(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = TitleText
                     )
                 }
 
                 val members = listOf(
                     DevMember("Ziyang", "主導手機軟題化的人。哈哈屁眼", R.drawable.ziyang),
-                    DevMember("泥巴", "你說得對，但是你說的也不完全對。從某種角度來說，你說的有一點對，可是從另一個角度看，你說得不對。也不能說是完全不對，只能說離完全對之間還有一點不對。如果忽略這點不對，那你說的當然是對的，可是以一個更嚴謹的態度去審視你說的對不對，那麼你說的又不是對的了。 ", R.drawable.dirt),
+                    DevMember(
+                        "泥巴",
+                        "你說得對，但是你說的也不完全對。從某種角度來說，你說的有一點對，可是從另一個角度看，你說得不對。也不能說是完全不對，只能說離完全對之間還有一點不對。如果忽略這點不對，那你說的當然是對的，可是以一個更嚴謹的態度去審視你說的對不對，那麼你說的又不是對的了。",
+                        R.drawable.dirt
+                    ),
                     DevMember("Jason", "《關於我這隻Sb綠豬可能要脫單這件事》團隊主輔 vibe coder + 一個完全不稱職的隊長", R.drawable.json),
                     DevMember("Mina", "(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(扭曲)(陰暗的爬行)(尖叫)(爬行))扭動)(分裂)(陰暗地蠕動)", R.drawable.ziyang),
                     DevMember("Leo", "效能優化、動畫與可用性測試", R.drawable.ziyang),
@@ -140,13 +168,15 @@ data class DevMember(
 
 @Composable
 private fun DeveloperCard(member: DevMember) {
-    Card(
+    val shape = RoundedCornerShape(18.dp)
+
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.large
+        shape = shape,
+        color = Color.White.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+        tonalElevation = 0.dp,
+        shadowElevation = 10.dp
     ) {
         Row(
             modifier = Modifier
@@ -162,14 +192,14 @@ private fun DeveloperCard(member: DevMember) {
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(72.dp)
-                        .background(Color(0xFFCACDD6), CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
                 )
             }
 
@@ -182,15 +212,13 @@ private fun DeveloperCard(member: DevMember) {
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = TitleText
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = member.description,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = Color.White.copy(alpha = 0.78f),
                     maxLines = 3
                 )
             }
@@ -198,44 +226,63 @@ private fun DeveloperCard(member: DevMember) {
     }
 }
 
+/* ---------------- 深色背景（BgDark + 底部光暈 + 很淡霧面層） ---------------- */
+
 @Composable
-private fun AnimatedGradientBackground(
-    modifier: Modifier = Modifier,
-    aStart: Color = Color(0xFFF3F6FF),
-    aMid:   Color = Color(0xFFEAF1FF),
-    aEnd:   Color = Color(0xFFDDE7FF),
-    bStart: Color = Color(0xFFE8F0FF),
-    bMid:   Color = Color(0xFFD6E3FF),
-    bEnd:   Color = Color(0xFFCBD9FF),
-    durationMs: Int = 4000
+private fun AuthBackground(
+    modifier: Modifier = Modifier
 ) {
-    val infinite = rememberInfiniteTransition()
+    Box(modifier = modifier.background(BgDark)) {
+        BottomDecorBackground(
+            modifier = Modifier.matchParentSize(),
+            tint = PrimaryBlue
+        )
+    }
+}
+
+@Composable
+private fun BottomDecorBackground(
+    modifier: Modifier = Modifier,
+    tint: Color
+) {
+    // ✅ 動畫必須在 Composable context 先算好，再丟給 Canvas 畫（不能放進 Canvas{} 裡）
+    val infinite = rememberInfiniteTransition(label = "about_bg")
     val tRaw by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMs, easing = LinearEasing),
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "about_bg_t"
     )
     val t = (1f - cos(tRaw * PI).toFloat()) / 2f
-    val c1 = lerp(aStart, bStart, t)
-    val c2 = lerp(aMid, bMid, t)
-    val c3 = lerp(aEnd, bEnd, t)
 
-    Box(
-        modifier = modifier.drawBehind {
-            val sx = size.width * (0.15f + 0.35f * t)
-            val sy = size.height * (0.10f + 0.25f * (1f - t))
-            val ex = size.width * (0.85f - 0.35f * t)
-            val ey = size.height * (0.90f - 0.25f * (1f - t))
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = listOf(c1, c2, c3),
-                    start = Offset(sx, sy),
-                    end = Offset(ex, ey)
-                )
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        // 底部藍光暈（你原本那個）
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tint.copy(alpha = 0.14f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.5f, h * 0.88f),
+                radius = h * 0.75f
             )
-        }
-    )
+        )
+
+        // 超淡霧面層（只讓背景不死黑，不會糊內容）
+        val c1 = Color(0xFF0B1220).copy(alpha = 0.18f + 0.06f * t)
+        val c2 = Color(0xFF111827).copy(alpha = 0.18f + 0.06f * (1f - t))
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(c1, c2),
+                start = Offset(0f, 0f),
+                end = Offset(w, h)
+            )
+        )
+    }
 }
