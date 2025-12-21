@@ -17,10 +17,12 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -44,7 +46,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
-import com.example.amicitia.ui.menu.chat.ChatNavHost
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
@@ -53,6 +54,7 @@ import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.example.amicitia.ui.menu.chat.ChatScreen
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
@@ -60,7 +62,7 @@ private val PrimaryBlue = Color(0xFF3F51B5)
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
-    const val CHAT = "menu_chat"
+    const val CHAT = "chat_screen"
     const val PROFILE = "menu_profile"
 }
 
@@ -113,7 +115,7 @@ private fun BottomDecorBackground(
     }
 }
 
-
+/* ---------------- MenuScreen ---------------- */
 
 @Composable
 fun MenuScreen(outerNavController: NavController) {
@@ -182,7 +184,8 @@ private fun MenuNavHost(
         }
 
         composable(MenuTabs.MAP) { MapRoute() }
-        composable(MenuTabs.CHAT) { ChatNavHost() }
+
+        composable(MenuTabs.CHAT) { ChatScreen() }
 
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
@@ -197,13 +200,12 @@ private fun MenuNavHost(
     }
 }
 
+
 @Composable
 private fun currentRoute(navController: NavHostController): String? {
     val entry by navController.currentBackStackEntryAsState()
     return entry?.destination?.route
 }
-
-
 
 @Composable
 private fun GlassBottomBar(navController: NavHostController) {
@@ -217,7 +219,6 @@ private fun GlassBottomBar(navController: NavHostController) {
             .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        // 外殼：只負責陰影與裁切
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -225,7 +226,6 @@ private fun GlassBottomBar(navController: NavHostController) {
                 .shadow(18.dp, pillShape, clip = false)
                 .clip(pillShape)
         ) {
-            // ✅ 1) 底層背景板（這層才 blur，裡面不要放 icon/文字）
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -241,13 +241,11 @@ private fun GlassBottomBar(navController: NavHostController) {
                     .drawBehind {
                         val r = 28.dp.toPx()
 
-                        // 霧面底
                         drawRoundRect(
                             color = Color.White.copy(alpha = 0.14f),
                             cornerRadius = CornerRadius(r, r)
                         )
 
-                        // 斜向高光
                         drawRoundRect(
                             brush = Brush.linearGradient(
                                 colors = listOf(
@@ -260,7 +258,6 @@ private fun GlassBottomBar(navController: NavHostController) {
                             cornerRadius = CornerRadius(r, r)
                         )
 
-                        // 底部厚度
                         drawRoundRect(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
@@ -278,7 +275,6 @@ private fun GlassBottomBar(navController: NavHostController) {
                     .border(1.dp, Color.White.copy(alpha = 0.12f), pillShape)
             )
 
-            // ✅ 2) 上層內容（完全不 blur，所以 icon 不會糊）
             NavigationBar(
                 containerColor = Color.Transparent,
                 tonalElevation = 0.dp,
