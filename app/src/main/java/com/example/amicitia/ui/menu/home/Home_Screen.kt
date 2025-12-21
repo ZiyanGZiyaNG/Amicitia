@@ -3,6 +3,7 @@ package com.example.amicitia.ui.menu.home
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,7 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -38,9 +39,7 @@ private val PrimaryBlue = Color(0xFF3F51B5)
 private fun AuthBackground(
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.background(BgDark)
-    ) {
+    Box(modifier = modifier.background(BgDark)) {
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue
@@ -74,56 +73,90 @@ private fun LiquidGlassCard(
     modifier: Modifier = Modifier,
     cornerDp: Dp = 24.dp,
     contentPadding: Dp = 16.dp,
+    onClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerDp)
 
+    // ✅ 讓「微粒」固定，不要每次重組都換一張貼圖
+    val seed = remember { Random.nextInt() }
+    val stableRandom = remember(seed) { Random(seed) }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val glassBase = Color.White.copy(alpha = 0.12f)
+
     Row(
         modifier = modifier
-            // ✅ 修正：陰影跟著圓角裁切，避免中間出現方塊/白白一塊
-            .shadow(14.dp, shape, clip = true)
+            // ✅ 陰影交給 shadow，避免 Surface 的狀態層造成「中間淡淡矩形」
+            .shadow(
+                elevation = 14.dp,
+                shape = shape,
+                clip = false
+            )
+            // ✅ 內容裁切成圓角
             .clip(shape)
-            // ✅ 底色用 background 做，避免 drawBehind 疊出矩形感
-            .background(Color.White.copy(alpha = 0.12f))
-            .drawBehind {
+            // ✅ 玻璃底色
+            .background(glassBase)
+            // ✅ 關掉 ripple / pressed overlay（矩形來源）
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onClick() }
+                } else Modifier
+            )
+            // ✅ 高光/厚度/微粒都在同一層畫，且已被 clip(shape) 裁切
+            .drawWithCache {
                 val r = cornerDp.toPx()
 
-                // 斜向高光
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.20f),
-                            Color.Transparent
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height)
+                val highlight = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.18f),
+                        Color.Transparent
                     ),
-                    cornerRadius = CornerRadius(r, r)
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height)
                 )
 
-                // 底部厚度（很淡）
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.14f)
-                        ),
-                        startY = size.height * 0.35f,
-                        endY = size.height
+                val depth = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.14f)
                     ),
-                    cornerRadius = CornerRadius(r, r)
+                    startY = size.height * 0.35f,
+                    endY = size.height
                 )
 
-                // 微粒
-                repeat(80) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.025f),
-                        radius = Random.nextFloat() * 1.5f + 0.5f,
-                        center = Offset(
-                            Random.nextFloat() * size.width,
-                            Random.nextFloat() * size.height
-                        )
+                val dots = List(60) {
+                    Triple(
+                        stableRandom.nextFloat() * size.width,
+                        stableRandom.nextFloat() * size.height,
+                        stableRandom.nextFloat() * 1.4f + 0.4f
                     )
+                }
+
+                onDrawBehind {
+                    // 斜向高光
+                    drawRoundRect(
+                        brush = highlight,
+                        cornerRadius = CornerRadius(r, r)
+                    )
+
+                    // 底部厚度
+                    drawRoundRect(
+                        brush = depth,
+                        cornerRadius = CornerRadius(r, r)
+                    )
+
+                    // 微粒
+                    dots.forEach { (x, y, rad) ->
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.018f),
+                            radius = rad,
+                            center = Offset(x, y)
+                        )
+                    }
                 }
             }
             .padding(contentPadding),
@@ -211,8 +244,8 @@ private fun SportCard(
     LiquidGlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
-            .clickable { onClick() }
+            .height(96.dp),
+        onClick = onClick
     ) {
         Icon(
             painter = icon,
