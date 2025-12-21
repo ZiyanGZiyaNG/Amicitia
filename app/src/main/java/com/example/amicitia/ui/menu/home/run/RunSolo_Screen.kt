@@ -54,14 +54,20 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 
 // =========================
-// 現代化配色（保留你的紫色主題，但更乾淨）
+// 深色系（跟你全站一致）
 // =========================
-private val PrimaryPurple = Color(0xFF4F46E5)
-private val PageBg = Color(0xFFF6F1FA)
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
 
-// 玻璃感：白底微透明
-private val Glass = Color(0xEFFFFFFF)
-private val GlassSoft = Color(0xCCFFFFFF)
+// 玻璃：深色底上的霧面
+private val GlassDark = Color(0x2BFFFFFF)      // 0x2B ≈ 17%
+private val GlassDarkStrong = Color(0x33FFFFFF) // 0x33 ≈ 20%
+private val BorderSoft = Color(0x22FFFFFF)
+
+// 文字
+private val TextPrimary = Color.White
+private val TextMuted = Color(0xB3FFFFFF)      // 70%
+private val TextSubtle = Color(0x80FFFFFF)     // 50%
 
 // =========================
 // 狀態
@@ -106,14 +112,14 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
         override fun onLocationResult(result: LocationResult) {
             val loc = result.lastLocation ?: return
 
-            // 精度過差就先不要收點，避免路線亂跳
+            // 精度太差不收點
             val acc = loc.accuracy
             if (acc.isNaN() || acc <= 0f || acc > 25f) return
 
             val prev = lastLocation
             if (prev != null) {
                 val d = prev.distanceTo(loc)
-                // 避免原地飄移算距離
+                // 避免飄移
                 if (d >= 1.5f) totalDistanceMeters += d
             }
 
@@ -250,7 +256,7 @@ class SoloRunVMFactory(private val app: Application) : ViewModelProvider.Factory
 }
 
 // =========================
-// 現代版 UI：地圖主視覺 + 玻璃資訊浮層 + 右下 FAB + 底部控制列
+// UI：深色底 + 地圖主視覺 + 玻璃浮層 + 右下 FAB + 底部控制列
 // =========================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -260,12 +266,9 @@ fun RunSoloScreen(navController: NavController) {
     val viewModel: SoloRunViewModel = viewModel(factory = SoloRunVMFactory(app))
     val ui by viewModel.uiState.collectAsState()
 
-    // 權限
-    val hasLocationPermission = remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        )
+    // 權限（每次進來都重算一次，避免 remember 卡住）
+    var hasLocationPermission by remember {
+        mutableStateOf(context.hasAnyLocationPermission())
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -273,10 +276,9 @@ fun RunSoloScreen(navController: NavController) {
     ) { granted ->
         val fine = granted[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarse = granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        hasLocationPermission.value = fine || coarse
+        hasLocationPermission = fine || coarse
 
-        // 若正在跑步，授權後立刻開始收定位/步數
-        if (hasLocationPermission.value && ui.state == RunState.RUNNING) {
+        if (hasLocationPermission && ui.state == RunState.RUNNING) {
             viewModel.startLocationUpdates()
             viewModel.startStepCounter()
         }
@@ -287,10 +289,9 @@ fun RunSoloScreen(navController: NavController) {
         position = CameraPosition.fromLatLngZoom(LatLng(25.0330, 121.5654), 16f)
     }
 
-    // 跟隨模式（更現代：用 FAB 切換）
+    // 跟隨模式
     var followMode by remember { mutableStateOf(true) }
 
-    // 跟隨最後位置
     LaunchedEffect(ui.lastLatLng, followMode) {
         val last = ui.lastLatLng ?: return@LaunchedEffect
         if (!followMode) return@LaunchedEffect
@@ -305,20 +306,30 @@ fun RunSoloScreen(navController: NavController) {
     }
 
     Scaffold(
-        containerColor = PageBg,
+        containerColor = BgDark,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         "SOLO 跑步",
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextPrimary
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = TextPrimary,
+                    navigationIconContentColor = TextPrimary
+                )
             )
         }
     ) { padding ->
@@ -326,14 +337,13 @@ fun RunSoloScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PageBg)
+                .background(BgDark)
                 .padding(padding)
         ) {
-            // 1) 地圖主視覺區
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp) // 現代感：地圖做主角
+                    .height(420.dp)
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(28.dp))
             ) {
@@ -341,7 +351,7 @@ fun RunSoloScreen(navController: NavController) {
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
                     properties = MapProperties(
-                        isMyLocationEnabled = hasLocationPermission.value
+                        isMyLocationEnabled = hasLocationPermission
                     ),
                     uiSettings = MapUiSettings(
                         zoomControlsEnabled = false,
@@ -350,11 +360,10 @@ fun RunSoloScreen(navController: NavController) {
                     )
                 ) {
                     if (ui.route.size >= 2) {
-                        Polyline(points = ui.route, width = 12f)
+                        Polyline(points = ui.route, width = 10f)
                     }
                 }
 
-                // 2) 玻璃資訊浮層（現代：資訊收斂成一張卡）
                 GlassStatsOverlay(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -362,18 +371,16 @@ fun RunSoloScreen(navController: NavController) {
                     distanceKm = ui.distanceKm,
                     elapsedMillis = ui.elapsedMillis,
                     steps = ui.steps,
-                    gpsText = gpsText(hasLocationPermission.value, ui.lastLatLng),
+                    gpsText = gpsText(hasLocationPermission, ui.lastLatLng),
                     runState = ui.state
                 )
 
-                // 3) 右下 FAB（icon-only，更現代）
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // 重新定位 / 回到目前位置
                     SmallRoundFab(
                         icon = Icons.Filled.MyLocation,
                         onClick = {
@@ -385,7 +392,6 @@ fun RunSoloScreen(navController: NavController) {
                         }
                     )
 
-                    // 跟隨切換
                     SmallRoundFab(
                         icon = if (followMode) Icons.Filled.GpsFixed else Icons.Filled.GpsNotFixed,
                         active = followMode,
@@ -396,18 +402,16 @@ fun RunSoloScreen(navController: NavController) {
 
             Spacer(Modifier.height(14.dp))
 
-            // 4) 底部控制列（現代：一條控制列，不是一顆巨大按鈕塞底）
             ModernControlBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 state = ui.state,
-                primaryColor = PrimaryPurple,
                 onPrimary = {
                     when (ui.state) {
                         RunState.IDLE -> {
                             viewModel.onStart()
-                            if (hasLocationPermission.value) {
+                            if (hasLocationPermission) {
                                 viewModel.startLocationUpdates()
                                 viewModel.startStepCounter()
                             } else {
@@ -422,7 +426,7 @@ fun RunSoloScreen(navController: NavController) {
                         RunState.RUNNING -> viewModel.onPause()
                         RunState.PAUSED -> {
                             viewModel.onResume()
-                            if (hasLocationPermission.value) {
+                            if (hasLocationPermission) {
                                 viewModel.startLocationUpdates()
                                 viewModel.startStepCounter()
                             } else {
@@ -440,15 +444,13 @@ fun RunSoloScreen(navController: NavController) {
             )
 
             Spacer(Modifier.height(10.dp))
-
-            // 底部留白（避免貼到底導航）
             Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 // =========================
-// 組件：玻璃資訊卡
+// 組件：玻璃資訊卡（深色版）
 // =========================
 @Composable
 private fun GlassStatsOverlay(
@@ -463,37 +465,36 @@ private fun GlassStatsOverlay(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp),
-        color = Glass,
+        color = GlassDark,
         shape = RoundedCornerShape(20.dp),
-        tonalElevation = 2.dp,
-        shadowElevation = 6.dp
+        tonalElevation = 0.dp,
+        shadowElevation = 10.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     String.format("%.2f", distanceKm),
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111111)
+                    color = TextPrimary
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     "km",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF444444)
+                    color = TextMuted
                 )
 
                 Spacer(Modifier.weight(1f))
 
-                // 小狀態 chip（不是按鈕，現代提示感）
                 Surface(
-                    color = GlassSoft,
+                    color = GlassDarkStrong,
                     shape = RoundedCornerShape(999.dp),
                     tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
+                    shadowElevation = 0.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
                 ) {
                     Text(
                         text = when (runState) {
@@ -503,18 +504,17 @@ private fun GlassStatsOverlay(
                         },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         fontSize = 12.sp,
-                        color = Color(0xFF222222)
+                        color = TextPrimary
                     )
                 }
             }
 
             Spacer(Modifier.height(6.dp))
 
-            // 一行資訊（更像運動 App：緊湊）
             Text(
                 "${formatMillis(elapsedMillis)} · ${steps} steps",
                 fontSize = 13.sp,
-                color = Color(0xFF333333)
+                color = TextMuted
             )
 
             Spacer(Modifier.height(6.dp))
@@ -522,14 +522,14 @@ private fun GlassStatsOverlay(
             Text(
                 gpsText,
                 fontSize = 12.sp,
-                color = Color(0xFF666666)
+                color = TextSubtle
             )
         }
     }
 }
 
 // =========================
-// 組件：圓形 FAB（icon-only 現代化）
+// 組件：圓形 FAB（深色版）
 // =========================
 @Composable
 private fun SmallRoundFab(
@@ -540,9 +540,10 @@ private fun SmallRoundFab(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = if (active) PrimaryPurple.copy(alpha = 0.18f) else Glass,
-        tonalElevation = 2.dp,
-        shadowElevation = 8.dp
+        color = if (active) PrimaryBlue.copy(alpha = 0.20f) else GlassDark,
+        tonalElevation = 0.dp,
+        shadowElevation = 12.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
     ) {
         Box(
             modifier = Modifier.size(46.dp),
@@ -551,29 +552,29 @@ private fun SmallRoundFab(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (active) PrimaryPurple else Color(0xFF333333)
+                tint = if (active) PrimaryBlue else TextPrimary
             )
         }
     }
 }
 
 // =========================
-// 組件：底部控制列（現代化）
+// 組件：底部控制列（深色版）
 // =========================
 @Composable
 private fun ModernControlBar(
     modifier: Modifier,
     state: RunState,
-    primaryColor: Color,
     onPrimary: () -> Unit,
     onStop: () -> Unit
 ) {
     Surface(
         modifier = modifier,
-        color = Glass,
+        color = GlassDark,
         shape = RoundedCornerShape(22.dp),
-        tonalElevation = 2.dp,
-        shadowElevation = 8.dp
+        tonalElevation = 0.dp,
+        shadowElevation = 12.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
     ) {
         Row(
             modifier = Modifier
@@ -581,7 +582,6 @@ private fun ModernControlBar(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左：狀態文字（小而清楚）
             Column {
                 Text(
                     text = when (state) {
@@ -590,18 +590,17 @@ private fun ModernControlBar(
                         RunState.PAUSED -> "Paused"
                     },
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111111)
+                    color = TextPrimary
                 )
                 Text(
                     text = "GPS / Steps / Timer",
                     fontSize = 12.sp,
-                    color = Color(0xFF666666)
+                    color = TextSubtle
                 )
             }
 
             Spacer(Modifier.weight(1f))
 
-            // 右：主要操作（icon-only + 膠囊感）
             val (primaryIcon, primaryText) = when (state) {
                 RunState.IDLE -> Icons.Filled.PlayArrow to "Start"
                 RunState.RUNNING -> Icons.Filled.Pause to "Pause"
@@ -610,23 +609,24 @@ private fun ModernControlBar(
 
             Button(
                 onClick = onPrimary,
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                 shape = RoundedCornerShape(999.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                Icon(primaryIcon, contentDescription = null)
+                Icon(primaryIcon, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(6.dp))
-                Text(primaryText, fontWeight = FontWeight.SemiBold)
+                Text(primaryText, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
 
             Spacer(Modifier.width(10.dp))
 
-            // Stop：只在非 IDLE 顯示
             if (state != RunState.IDLE) {
                 OutlinedButton(
                     onClick = onStop,
                     shape = RoundedCornerShape(999.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
                 ) {
                     Icon(Icons.Filled.Stop, contentDescription = null)
                 }
@@ -635,9 +635,7 @@ private fun ModernControlBar(
     }
 }
 
-// =========================
-// 小工具
-// =========================
+
 private fun gpsText(hasPermission: Boolean, last: LatLng?): String {
     return when {
         !hasPermission -> "GPS：未授權（請允許位置權限）"
@@ -651,4 +649,14 @@ private fun formatMillis(ms: Long): String {
     val m = totalSec / 60
     val s = totalSec % 60
     return String.format("%02d:%02d", m, s)
+}
+
+private fun Context.hasAnyLocationPermission(): Boolean {
+    val fine = ContextCompat.checkSelfPermission(
+        this, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+    val coarse = ContextCompat.checkSelfPermission(
+        this, Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+    return fine || coarse
 }

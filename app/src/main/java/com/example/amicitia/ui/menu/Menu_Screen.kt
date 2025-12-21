@@ -44,7 +44,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
-import com.example.amicitia.ui.menu.chat.ChatRoute
+//import com.example.amicitia.ui.menu.chat.ChatRoute
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
@@ -182,7 +182,7 @@ private fun MenuNavHost(
         }
 
         composable(MenuTabs.MAP) { MapRoute() }
-        composable(MenuTabs.CHAT) { ChatRoute() }
+        //composable(MenuTabs.CHAT) { ChatRoute() }
 
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
