@@ -15,9 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -30,10 +28,14 @@ import com.example.amicitia.SportStats
 import com.example.amicitia.SportsRepository
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import kotlin.random.Random
+
+
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+private val SolidGray = Color(0xFF2A2A2A)
+
+
 
 @Composable
 private fun AuthBackground(
@@ -68,36 +70,31 @@ private fun BottomDecorBackground(
     }
 }
 
+/* -------------------------
+   Pure Gray Card
+-------------------------- */
+
 @Composable
-private fun LiquidGlassCard(
+private fun SolidColorCard(
     modifier: Modifier = Modifier,
     cornerDp: Dp = 24.dp,
     contentPadding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
+    backgroundColor: Color,
     content: @Composable RowScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerDp)
-
-    // ✅ 讓「微粒」固定，不要每次重組都換一張貼圖
-    val seed = remember { Random.nextInt() }
-    val stableRandom = remember(seed) { Random(seed) }
-
     val interactionSource = remember { MutableInteractionSource() }
-    val glassBase = Color.White.copy(alpha = 0.12f)
 
     Row(
         modifier = modifier
-            // ✅ 陰影交給 shadow，避免 Surface 的狀態層造成「中間淡淡矩形」
             .shadow(
                 elevation = 14.dp,
                 shape = shape,
                 clip = false
             )
-            // ✅ 內容裁切成圓角
             .clip(shape)
-            // ✅ 玻璃底色
-            .background(glassBase)
-            // ✅ 關掉 ripple / pressed overlay（矩形來源）
+            .background(backgroundColor)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(
@@ -106,70 +103,21 @@ private fun LiquidGlassCard(
                     ) { onClick() }
                 } else Modifier
             )
-            // ✅ 高光/厚度/微粒都在同一層畫，且已被 clip(shape) 裁切
-            .drawWithCache {
-                val r = cornerDp.toPx()
-
-                val highlight = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.18f),
-                        Color.Transparent
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, size.height)
-                )
-
-                val depth = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.14f)
-                    ),
-                    startY = size.height * 0.35f,
-                    endY = size.height
-                )
-
-                val dots = List(60) {
-                    Triple(
-                        stableRandom.nextFloat() * size.width,
-                        stableRandom.nextFloat() * size.height,
-                        stableRandom.nextFloat() * 1.4f + 0.4f
-                    )
-                }
-
-                onDrawBehind {
-                    // 斜向高光
-                    drawRoundRect(
-                        brush = highlight,
-                        cornerRadius = CornerRadius(r, r)
-                    )
-
-                    // 底部厚度
-                    drawRoundRect(
-                        brush = depth,
-                        cornerRadius = CornerRadius(r, r)
-                    )
-
-                    // 微粒
-                    dots.forEach { (x, y, rad) ->
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.018f),
-                            radius = rad,
-                            center = Offset(x, y)
-                        )
-                    }
-                }
-            }
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )
 }
 
+
+
 data class SportMeta(
     val key: String,
     val name: String,
     val icon: Painter
 )
+
+
 
 @Composable
 fun HomeRoute(
@@ -234,6 +182,8 @@ fun HomeRoute(
     }
 }
 
+
+
 @Composable
 private fun SportCard(
     icon: Painter,
@@ -241,11 +191,12 @@ private fun SportCard(
     score: Int,
     onClick: () -> Unit
 ) {
-    LiquidGlassCard(
+    SolidColorCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(96.dp),
-        onClick = onClick
+        onClick = onClick,
+        backgroundColor = SolidGray
     ) {
         Icon(
             painter = icon,
