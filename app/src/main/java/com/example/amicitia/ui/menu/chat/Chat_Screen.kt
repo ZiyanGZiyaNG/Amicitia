@@ -8,170 +8,98 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlin.random.Random
+import androidx.navigation.NavHostController
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.google.firebase.ktx.Firebase
+import java.text.SimpleDateFormat
+import java.util.*
 
-/* -------------------------
-   Theme Colors（對齊 Home）
--------------------------- */
+/* ---------------- Theme ---------------- */
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+private val CardSolidGray = Color(0xFF2A2A2A)
 
-/* -------------------------
-   Background（完全同 Home）
--------------------------- */
+/* ---------------- Data ---------------- */
 
-@Composable
-private fun AuthBackground(
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier.background(BgDark)) {
-        BottomDecorBackground(
-            modifier = Modifier.matchParentSize(),
-            tint = PrimaryBlue
-        )
-    }
-}
-
-@Composable
-private fun BottomDecorBackground(
-    modifier: Modifier = Modifier,
-    tint: Color
-) {
-    Canvas(modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        drawRect(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    tint.copy(alpha = 0.14f),
-                    Color.Transparent
-                ),
-                center = Offset(w * 0.5f, h * 0.88f),
-                radius = h * 0.75f
-            )
-        )
-    }
-}
-
-/* -------------------------
-   Liquid Glass Card（同 Home）
--------------------------- */
-
-@Composable
-private fun LiquidGlassCard(
-    modifier: Modifier = Modifier,
-    cornerDp: Dp = 24.dp,
-    contentPadding: Dp = 16.dp,
-    onClick: (() -> Unit)? = null,
-    content: @Composable RowScope.() -> Unit
-) {
-    val shape = RoundedCornerShape(cornerDp)
-
-    val seed = remember { Random.nextInt() }
-    val stableRandom = remember(seed) { Random(seed) }
-
-    val interactionSource = remember { MutableInteractionSource() }
-    val glassBase = Color.White.copy(alpha = 0.12f)
-
-    Row(
-        modifier = modifier
-            .shadow(14.dp, shape, clip = false)
-            .clip(shape)
-            .background(glassBase)
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null
-                    ) { onClick() }
-                } else Modifier
-            )
-            .drawWithCache {
-                val r = cornerDp.toPx()
-
-                val highlight = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.18f),
-                        Color.Transparent
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, size.height)
-                )
-
-                val depth = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.14f)
-                    ),
-                    startY = size.height * 0.35f,
-                    endY = size.height
-                )
-
-                val dots = List(60) {
-                    Triple(
-                        stableRandom.nextFloat() * size.width,
-                        stableRandom.nextFloat() * size.height,
-                        stableRandom.nextFloat() * 1.4f + 0.4f
-                    )
-                }
-
-                onDrawBehind {
-                    drawRoundRect(brush = highlight, cornerRadius = CornerRadius(r, r))
-                    drawRoundRect(brush = depth, cornerRadius = CornerRadius(r, r))
-                    dots.forEach { (x, y, rad) ->
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.018f),
-                            radius = rad,
-                            center = Offset(x, y)
-                        )
-                    }
-                }
-            }
-            .padding(contentPadding),
-        verticalAlignment = Alignment.CenterVertically,
-        content = content
-    )
-}
-
-/* -------------------------
-   Fake Chat Data（先撐 UI）
--------------------------- */
-
-private data class ChatItem(
-    val name: String,
-    val lastMessage: String,
-    val time: String
+private data class ChatRoomItem(
+    val roomId: String,
+    val lastText: String,
+    val lastAt: Timestamp?
 )
 
-/* -------------------------
-   Chat Screen（重點）
--------------------------- */
+/* ---------------- Background ---------------- */
 
 @Composable
-fun ChatScreen() {
+private fun AuthBackground(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.background(BgDark)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        PrimaryBlue.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.5f, h * 0.88f),
+                    radius = h * 0.75f
+                )
+            )
+        }
+    }
+}
 
-    val chats = remember {
-        listOf(
-            ChatItem("阿明", "晚點要不要跑步？", "2 min"),
-            ChatItem("小華", "OK", "Yesterday"),
-            ChatItem("羽球社", "下週練習時間調整", "Mon"),
-            ChatItem("新朋友", "尚未開始對話", "")
-        )
+/* ---------------- Screen ---------------- */
+
+@Composable
+fun ChatScreen(
+    navController: NavHostController
+) {
+    val uid = Firebase.auth.currentUser?.uid ?: return
+    val db = remember { FirebaseFirestore.getInstance() }
+
+    var rooms by remember { mutableStateOf<List<ChatRoomItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+
+    DisposableEffect(Unit) {
+        val reg: ListenerRegistration =
+            db.collection("rooms")
+                .orderBy("lastMessageAt", Query.Direction.DESCENDING)
+                .addSnapshotListener { snap, _ ->
+                    if (snap == null) return@addSnapshotListener
+
+                    rooms = snap.documents.mapNotNull { doc ->
+                        val deletedFor = doc.get("deletedFor") as? Map<*, *>
+                        if (deletedFor?.get(uid) == true) return@mapNotNull null
+
+                        ChatRoomItem(
+                            roomId = doc.id,
+                            lastText = doc.getString("lastMessageText") ?: "",
+                            lastAt = doc.getTimestamp("lastMessageAt")
+                        )
+                    }
+                    loading = false
+                }
+
+        onDispose { reg.remove() }
     }
 
     Box(
@@ -189,58 +117,98 @@ fun ChatScreen() {
             Spacer(Modifier.height(16.dp))
 
             Text(
-                text = "Chats",
+                text = "聊天",
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White
             )
 
             Spacer(Modifier.height(12.dp))
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(chats) { chat ->
-                    ChatItemCard(chat = chat)
+            if (loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = PrimaryBlue)
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(rooms) { room ->
+                        ChatItemCard(
+                            room = room,
+                            onClick = {
+                                navController.navigate("room/${room.roomId}")
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/* ---------------- Card ---------------- */
+
 @Composable
 private fun ChatItemCard(
-    chat: ChatItem
+    room: ChatRoomItem,
+    onClick: () -> Unit
 ) {
-    LiquidGlassCard(
+    val shape = RoundedCornerShape(20.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(88.dp),
-        onClick = {
-            // 之後接 ChatNav → Room
-        }
+            .height(88.dp)
+            .shadow(0.dp)
+            .clip(shape)
+            .background(CardSolidGray)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = chat.name,
+                text = "聊天室",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White
             )
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = chat.lastMessage,
+                text = room.lastText,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.65f),
-                maxLines = 1
+                color = Color.White.copy(alpha = 0.68f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
-        if (chat.time.isNotEmpty()) {
+        room.lastAt?.let {
             Text(
-                text = chat.time,
+                text = formatTime(it),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.45f)
             )
         }
+    }
+}
+
+
+private fun formatTime(ts: Timestamp): String {
+    val date = ts.toDate()
+    val now = Date()
+    val diff = now.time - date.time
+
+    return when {
+        diff < 60_000 -> "剛剛"
+        diff < 3_600_000 -> "${diff / 60_000} 分鐘"
+        else -> SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
     }
 }

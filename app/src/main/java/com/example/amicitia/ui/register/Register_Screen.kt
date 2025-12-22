@@ -16,7 +16,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +40,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -55,11 +55,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,17 +68,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -89,108 +83,13 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.random.Random
 
 private val PrimaryBlue = Color(0xFF3F51B5)
 private val BgDark = Color(0xFF1E1E1E)
 
-@Composable
-private fun LiquidGlassCard(
-    modifier: Modifier = Modifier,
-    cornerDp: Dp = 26.dp,
-    shadowDp: Dp = 16.dp,
-    frostAlpha: Float = 0.24f,
-    borderAlpha: Float = 0.40f,
-    innerBorderAlpha: Float = 0.16f,
-    noiseAlpha: Float = 0.035f,
-    contentPadding: Dp = 16.dp,
-    content: @Composable () -> Unit
-) {
-    val shape = RoundedCornerShape(cornerDp)
-
-    Box(
-        modifier = modifier
-            .shadow(shadowDp, shape, clip = false)
-            .clip(shape)
-            .drawBehind {
-                val cornerPx = cornerDp.toPx()
-
-                // 0) 外圈柔光：讓卡片從背景跳出來
-                val glow = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.14f),
-                        Color.Transparent
-                    ),
-                    center = Offset(size.width * 0.5f, size.height * 0.35f),
-                    radius = size.minDimension * 0.95f
-                )
-                drawRoundRect(
-                    brush = glow,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                // 1) 霧面底
-                drawRoundRect(
-                    color = Color.White.copy(alpha = frostAlpha),
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                // 2) 斜向高光
-                val highlight = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.26f),
-                        Color.White.copy(alpha = 0.12f),
-                        Color.Transparent
-                    ),
-                    start = Offset(size.width * -0.22f, size.height * 0.02f),
-                    end = Offset(size.width * 0.92f, size.height * 0.90f)
-                )
-                drawRoundRect(
-                    brush = highlight,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                // 3) 底部厚度陰影
-                val depth = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.10f)
-                    ),
-                    startY = size.height * 0.30f,
-                    endY = size.height
-                )
-                drawRoundRect(
-                    brush = depth,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                // 4) 超淡噪點
-                if (noiseAlpha > 0f) {
-                    val dotCount = (size.width * size.height / 9000f).toInt().coerceIn(40, 180)
-                    repeat(dotCount) {
-                        val x = Random.nextFloat() * size.width
-                        val y = Random.nextFloat() * size.height
-                        val r = Random.nextFloat().coerceIn(0.6f, 1.4f)
-                        drawCircle(
-                            color = Color.White.copy(alpha = noiseAlpha),
-                            radius = r,
-                            center = Offset(x, y)
-                        )
-                    }
-                }
-            }
-            .border(1.dp, Color.White.copy(alpha = borderAlpha), shape)
-            .padding(1.dp)
-            .border(1.dp, Color.White.copy(alpha = innerBorderAlpha), shape)
-            .padding(contentPadding)
-    ) {
-        content()
-    }
-}
+// 跟 Home/Chat 一致的「實心深灰」卡片/輸入匡
+private val CardSolidGray = Color(0xFF2A2A2A)
+private val CardBorder = Color.White.copy(alpha = 0.10f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,9 +145,7 @@ fun RegisterScreen(navController: NavController) {
     }
     val canShowAgreeAndButtons = passwordsMatch
 
-    val stepCount = remember(
-        canShowNickname, canShowPassword, canShowConfirm, canShowAgreeAndButtons
-    ) {
+    val stepCount = remember(canShowNickname, canShowPassword, canShowConfirm, canShowAgreeAndButtons) {
         (if (canShowNickname) 1 else 0) +
                 (if (canShowPassword) 1 else 0) +
                 (if (canShowConfirm) 1 else 0) +
@@ -332,26 +229,27 @@ fun RegisterScreen(navController: NavController) {
         }
     }
 
-    // 玻璃化 TextField 配色（跟 Login 一致，且更清楚）
-    val glassFieldColors = OutlinedTextFieldDefaults.colors(
+    // 改成跟 Home 一致的深色實心輸入匡（不走 glassFieldColors）
+    val homeFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
-        cursorColor = Color.White.copy(alpha = 0.95f),
+        cursorColor = Color.White.copy(alpha = 0.92f),
 
-        focusedLabelColor = Color.White.copy(alpha = 0.90f),
-        unfocusedLabelColor = Color.White.copy(alpha = 0.78f),
+        focusedLabelColor = Color.White.copy(alpha = 0.80f),
+        unfocusedLabelColor = Color.White.copy(alpha = 0.65f),
 
-        focusedBorderColor = Color.White.copy(alpha = 0.65f),
-        unfocusedBorderColor = Color.White.copy(alpha = 0.38f),
+        focusedBorderColor = Color.White.copy(alpha = 0.22f),
+        unfocusedBorderColor = Color.White.copy(alpha = 0.14f),
 
-        focusedLeadingIconColor = Color.White.copy(alpha = 0.90f),
-        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
-        focusedTrailingIconColor = Color.White.copy(alpha = 0.90f),
-        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
+        focusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
+        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.70f),
+        focusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
+        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.70f),
 
-        focusedContainerColor = Color.White.copy(alpha = 0.16f),
-        unfocusedContainerColor = Color.White.copy(alpha = 0.12f),
-        errorContainerColor = Color.White.copy(alpha = 0.12f)
+        focusedContainerColor = CardSolidGray,
+        unfocusedContainerColor = CardSolidGray,
+        disabledContainerColor = CardSolidGray.copy(alpha = 0.75f),
+        errorContainerColor = CardSolidGray
     )
 
     Box(
@@ -361,8 +259,7 @@ fun RegisterScreen(navController: NavController) {
             .systemBarsPadding()
             .imePadding()
     ) {
-
-        // 底部微光暈（保留但更乾淨）
+        // 背景同 Home：底部微光暈
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue,
@@ -414,19 +311,19 @@ fun RegisterScreen(navController: NavController) {
                 )
                 Spacer(Modifier.height(20.dp))
 
-                // ✅ 把原本 Surface 改成液態玻璃卡片
-                LiquidGlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerDp = 26.dp,
-                    shadowDp = 16.dp,
-                    frostAlpha = 0.24f,
-                    borderAlpha = 0.40f,
-                    innerBorderAlpha = 0.16f,
-                    noiseAlpha = 0.035f,
-                    contentPadding = 16.dp
+                // ✅ 改成 Home 風格：實心深灰卡片（取代 LiquidGlassCard）
+                Surface(
+                    color = CardSolidGray,
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.wrapContentHeight(),
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
@@ -438,7 +335,7 @@ fun RegisterScreen(navController: NavController) {
                             isError = fieldErrorEmail != null,
                             shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = glassFieldColors
+                            colors = homeFieldColors
                         )
                         AnimatedVisibility(visible = fieldErrorEmail != null) {
                             Text(
@@ -463,7 +360,7 @@ fun RegisterScreen(navController: NavController) {
                                     isError = fieldErrorNickname != null,
                                     shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = glassFieldColors
+                                    colors = homeFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorNickname != null) {
                                     Text(
@@ -497,7 +394,7 @@ fun RegisterScreen(navController: NavController) {
                                     },
                                     shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = glassFieldColors
+                                    colors = homeFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorPassword != null) {
                                     Text(
@@ -531,7 +428,7 @@ fun RegisterScreen(navController: NavController) {
                                     },
                                     shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = glassFieldColors
+                                    colors = homeFieldColors
                                 )
                                 AnimatedVisibility(visible = fieldErrorConfirm != null) {
                                     Text(
@@ -645,7 +542,7 @@ private fun BottomDecorBackground(
                     tint.copy(alpha = 0.14f * alphaFactor),
                     Color.Transparent
                 ),
-                center = Offset(w * 0.5f, h * 0.88f + drift),
+                center = androidx.compose.ui.geometry.Offset(w * 0.5f, h * 0.88f + drift),
                 radius = h * 0.75f
             )
         )

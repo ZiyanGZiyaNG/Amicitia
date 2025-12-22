@@ -24,11 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -51,10 +52,6 @@ import com.google.firebase.ktx.Firebase
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-// ✅ 純色 BottomBar（灰）
-private val BarSolid = Color(0xFF242424)
-private val BarBorder = Color.White.copy(alpha = 0.10f)
-
 private object MenuTabs {
     const val HOME = "menu_home"
     const val MAP = "menu_map"
@@ -71,18 +68,16 @@ private val bottomItems = listOf(
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
 
-/* ---------------- Background（跟 Register 一樣：BgDark + 底部光暈） ---------------- */
+
 
 @Composable
 private fun AuthBackground(
-    modifier: Modifier = Modifier,
-    successProgress: Float = 0f
+    modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.background(BgDark)) {
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
-            tint = PrimaryBlue,
-            alphaFactor = 1f - successProgress
+            tint = PrimaryBlue
         )
     }
 }
@@ -90,8 +85,7 @@ private fun AuthBackground(
 @Composable
 private fun BottomDecorBackground(
     modifier: Modifier = Modifier,
-    tint: Color,
-    alphaFactor: Float = 1f
+    tint: Color
 ) {
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
@@ -99,7 +93,7 @@ private fun BottomDecorBackground(
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tint.copy(alpha = 0.14f * alphaFactor),
+                    tint.copy(alpha = 0.14f),
                     Color.Transparent
                 ),
                 center = Offset(w * 0.5f, h * 0.88f),
@@ -109,7 +103,7 @@ private fun BottomDecorBackground(
     }
 }
 
-/* ---------------- MenuScreen ---------------- */
+
 
 @Composable
 fun MenuScreen(outerNavController: NavController) {
@@ -135,12 +129,15 @@ fun MenuScreen(outerNavController: NavController) {
 
         Scaffold(
             containerColor = Color.Transparent,
-            bottomBar = { SolidBottomBar(navController = innerNav) } // ✅ 改純色
+            bottomBar = { SolidPillBottomBar(navController = innerNav) }
         ) { innerPadding ->
             val route = currentRoute(innerNav)
+
             val contentModifier =
                 if (route == MenuTabs.MAP) Modifier.fillMaxSize()
-                else Modifier.fillMaxSize().padding(innerPadding)
+                else Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
 
             MenuNavHost(
                 navController = innerNav,
@@ -152,7 +149,6 @@ fun MenuScreen(outerNavController: NavController) {
     }
 }
 
-/* ---------------- NavHost ---------------- */
 
 @Composable
 private fun MenuNavHost(
@@ -178,7 +174,8 @@ private fun MenuNavHost(
         }
 
         composable(MenuTabs.MAP) { MapRoute() }
-        composable(MenuTabs.CHAT) { ChatScreen() }
+
+        composable(route = MenuTabs.CHAT) { ChatScreen(navController = navController) }
 
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
@@ -199,29 +196,70 @@ private fun currentRoute(navController: NavHostController): String? {
     return entry?.destination?.route
 }
 
-/* ---------------- 純色 BottomBar ---------------- */
+
 
 @Composable
-private fun SolidBottomBar(navController: NavHostController) {
+private fun SolidPillBottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
     val pillShape = RoundedCornerShape(28.dp)
+
+
+    val barBase = BgDark
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
-        contentAlignment = Alignment.Center
+
+            .padding(start = 16.dp, end = 16.dp, bottom = 0.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        // ✅ 外層膠囊：純色 + 陰影 + 細邊框
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .shadow(18.dp, pillShape, clip = false)
                 .clip(pillShape)
-                .background(BarSolid)
-                .border(1.dp, BarBorder, pillShape)
+                .background(barBase)
+                .drawBehind {
+                    val r = 28.dp.toPx()
+
+
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                BgDark,
+                                BgDark.copy(alpha = 0f)
+                            ),
+                            startY = 0f,
+                            endY = 22.dp.toPx()
+                        )
+                    )
+
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.06f),
+                                Color.Transparent
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height)
+                        ),
+                        cornerRadius = CornerRadius(r, r)
+                    )
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.10f)
+                            ),
+                            startY = size.height * 0.40f,
+                            endY = size.height
+                        ),
+                        cornerRadius = CornerRadius(r, r)
+                    )
+                }
+                .border(1.dp, Color.White.copy(alpha = 0.10f), pillShape)
+                .padding(1.dp)
         ) {
             NavigationBar(
                 containerColor = Color.Transparent,
@@ -248,7 +286,6 @@ private fun SolidBottomBar(navController: NavHostController) {
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = PrimaryBlue,
                             unselectedIconColor = Color.White.copy(alpha = 0.78f),
-                            // ✅ 指示器也純色（比底色亮一點點的灰）
                             indicatorColor = Color.White.copy(alpha = 0.08f)
                         ),
                         alwaysShowLabel = false

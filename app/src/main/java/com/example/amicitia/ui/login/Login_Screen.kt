@@ -15,11 +15,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +43,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +53,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,21 +66,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
@@ -91,21 +88,20 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.random.Random
 
 private val PrimaryBlue = Color(0xFF3F51B5)
 private val BgDark = Color(0xFF1E1E1E)
 
+// ✅ 跟 Home / Chat / Register（新版）一致：實心深灰
+private val CardSolidGray = Color(0xFF2A2A2A)
+private val CardBorder = Color.White.copy(alpha = 0.10f)
 
 @Composable
 private fun AuthBackground(
     modifier: Modifier = Modifier,
     successProgress: Float = 0f
 ) {
-    Box(
-        modifier = modifier
-            .background(BgDark)
-    ) {
+    Box(modifier = modifier.background(BgDark)) {
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue,
@@ -136,7 +132,6 @@ private fun BottomDecorBackground(
     Canvas(modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -150,100 +145,6 @@ private fun BottomDecorBackground(
     }
 }
 
-
-@Composable
-private fun LiquidGlassCard(
-    modifier: Modifier = Modifier,
-    cornerDp: Dp = 26.dp,
-    shadowDp: Dp = 16.dp,
-    frostAlpha: Float = 0.24f,
-    borderAlpha: Float = 0.40f,
-    innerBorderAlpha: Float = 0.16f,
-    noiseAlpha: Float = 0.035f,
-    contentPadding: Dp = 16.dp,
-    content: @Composable () -> Unit
-) {
-    val shape = RoundedCornerShape(cornerDp)
-
-    Box(
-        modifier = modifier
-            .shadow(shadowDp, shape, clip = false)
-            .clip(shape)
-            .drawBehind {
-                val cornerPx = cornerDp.toPx()
-
-                val glow = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.14f),
-                        Color.Transparent
-                    ),
-                    center = Offset(size.width * 0.5f, size.height * 0.35f),
-                    radius = size.minDimension * 0.95f
-                )
-                drawRoundRect(
-                    brush = glow,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                drawRoundRect(
-                    color = Color.White.copy(alpha = frostAlpha),
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                val highlight = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.26f),
-                        Color.White.copy(alpha = 0.12f),
-                        Color.Transparent
-                    ),
-                    start = Offset(size.width * -0.22f, size.height * 0.02f),
-                    end = Offset(size.width * 0.92f, size.height * 0.90f)
-                )
-                drawRoundRect(
-                    brush = highlight,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                val depth = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.10f)
-                    ),
-                    startY = size.height * 0.30f,
-                    endY = size.height
-                )
-                drawRoundRect(
-                    brush = depth,
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                    size = size
-                )
-
-                if (noiseAlpha > 0f) {
-                    val dotCount = (size.width * size.height / 9000f).toInt().coerceIn(40, 180)
-                    repeat(dotCount) {
-                        val x = Random.nextFloat() * size.width
-                        val y = Random.nextFloat() * size.height
-                        val r = Random.nextFloat().coerceIn(0.6f, 1.4f)
-                        drawCircle(
-                            color = Color.White.copy(alpha = noiseAlpha),
-                            radius = r,
-                            center = Offset(x, y)
-                        )
-                    }
-                }
-            }
-            .border(1.dp, Color.White.copy(alpha = borderAlpha), shape)
-            .padding(1.dp)
-            .border(1.dp, Color.White.copy(alpha = innerBorderAlpha), shape)
-            .padding(contentPadding)
-    ) {
-        content()
-    }
-}
-
 @Composable
 fun LoginLogo(modifier: Modifier = Modifier) {
     Box(
@@ -252,9 +153,8 @@ fun LoginLogo(modifier: Modifier = Modifier) {
             .shadow(elevation = 10.dp, shape = CircleShape, clip = false)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.94f))
-            .border(1.dp, Color.White.copy(alpha = 0.60f), CircleShape)
-            .padding(2.dp)
-            .border(1.dp, PrimaryBlue.copy(alpha = 0.16f), CircleShape),
+            .shadow(0.dp)
+            .padding(2.dp),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -273,6 +173,7 @@ fun LoginScreen(navController: NavController) {
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+
     var fieldErrorEmail by remember { mutableStateOf<String?>(null) }
     var fieldErrorPassword by remember { mutableStateOf<String?>(null) }
     var formMessage by remember { mutableStateOf<String?>(null) }
@@ -280,6 +181,7 @@ fun LoginScreen(navController: NavController) {
     var showResetDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
     var resetLoading by remember { mutableStateOf(false) }
+
     var loginSuccess by remember { mutableStateOf(false) }
 
     val successProgress by animateFloatAsState(
@@ -304,6 +206,29 @@ fun LoginScreen(navController: NavController) {
         val o = com.google.firebase.FirebaseApp.getInstance().options
         Log.i("FirebaseCheck", "projectId=${o.projectId}, appId=${o.applicationId}")
     }
+
+    // ✅ 跟 Register（新版）一致：深灰實心 TextField
+    val homeFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        cursorColor = Color.White.copy(alpha = 0.92f),
+
+        focusedLabelColor = Color.White.copy(alpha = 0.80f),
+        unfocusedLabelColor = Color.White.copy(alpha = 0.65f),
+
+        focusedBorderColor = Color.White.copy(alpha = 0.22f),
+        unfocusedBorderColor = Color.White.copy(alpha = 0.14f),
+
+        focusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
+        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.70f),
+        focusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
+        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.70f),
+
+        focusedContainerColor = CardSolidGray,
+        unfocusedContainerColor = CardSolidGray,
+        disabledContainerColor = CardSolidGray.copy(alpha = 0.75f),
+        errorContainerColor = CardSolidGray
+    )
 
     suspend fun login() {
         try {
@@ -357,27 +282,6 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    val glassFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        cursorColor = Color.White.copy(alpha = 0.95f),
-
-        focusedLabelColor = Color.White.copy(alpha = 0.90f),
-        unfocusedLabelColor = Color.White.copy(alpha = 0.78f),
-
-        focusedBorderColor = Color.White.copy(alpha = 0.65f),
-        unfocusedBorderColor = Color.White.copy(alpha = 0.38f),
-
-        focusedLeadingIconColor = Color.White.copy(alpha = 0.90f),
-        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.80f),
-        focusedTrailingIconColor = Color.White.copy(alpha = 0.90f),
-        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.80f),
-
-        focusedContainerColor = Color.White.copy(alpha = 0.16f),
-        unfocusedContainerColor = Color.White.copy(alpha = 0.12f),
-        errorContainerColor = Color.White.copy(alpha = 0.12f)
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -406,18 +310,21 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            LiquidGlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerDp = 26.dp,
-                shadowDp = 16.dp,
-                frostAlpha = 0.24f,
-                borderAlpha = 0.40f,
-                innerBorderAlpha = 0.16f,
-                noiseAlpha = 0.035f,
-                contentPadding = 16.dp
+            // ✅ 把 LiquidGlassCard 換成「實心深灰卡片」
+            Surface(
+                color = CardSolidGray,
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, CardBorder),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
+                Column(
+                    modifier = Modifier
+                        .wrapContentHeight()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
@@ -436,7 +343,7 @@ fun LoginScreen(navController: NavController) {
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(onNext = { pwFocus.requestFocus() }),
-                        colors = glassFieldColors
+                        colors = homeFieldColors
                     )
 
                     AnimatedVisibility(visible = fieldErrorEmail != null) {
@@ -452,7 +359,7 @@ fun LoginScreen(navController: NavController) {
                         enter = fadeIn() + expandVertically(),
                         exit = fadeOut() + shrinkVertically()
                     ) {
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it; fieldErrorPassword = null },
@@ -475,7 +382,7 @@ fun LoginScreen(navController: NavController) {
                                 keyboardActions = KeyboardActions(
                                     onDone = { if (!loading && !loginSuccess) scope.launch { login() } }
                                 ),
-                                colors = glassFieldColors
+                                colors = homeFieldColors
                             )
 
                             AnimatedVisibility(visible = fieldErrorPassword != null) {
@@ -517,7 +424,11 @@ fun LoginScreen(navController: NavController) {
                         )
                     ) {
                         if (loading) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                            CircularProgressIndicator(
+                                Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
                             Spacer(Modifier.width(8.dp))
                             Text("處理中…")
                         } else {
@@ -532,7 +443,7 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .height(52.dp),
                         shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.42f)),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White.copy(alpha = 0.04f),
                             contentColor = Color.White
@@ -566,17 +477,19 @@ fun LoginScreen(navController: NavController) {
                     .fillMaxWidth(0.92f)
                     .wrapContentHeight()
             ) {
-                LiquidGlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerDp = 24.dp,
-                    shadowDp = 16.dp,
-                    frostAlpha = 0.28f,
-                    borderAlpha = 0.42f,
-                    innerBorderAlpha = 0.16f,
-                    noiseAlpha = 0.030f,
-                    contentPadding = 18.dp
+                // ✅ Reset Dialog 也改成實心深灰
+                Surface(
+                    color = CardSolidGray,
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text("重設密碼", style = MaterialTheme.typography.titleMedium, color = Color.White)
                         Text(
                             "請輸入你的註冊 Email，我們會寄送重設密碼連結給你。",
@@ -597,7 +510,7 @@ fun LoginScreen(navController: NavController) {
                                 imeAction = ImeAction.Done
                             ),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = glassFieldColors
+                            colors = homeFieldColors
                         )
 
                         Row(
