@@ -66,9 +66,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -89,6 +87,9 @@ import kotlin.math.cos
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+private val SolidGray = Color(0xFF2A2A2A)
+private val RowGray = Color(0xFF242424)
+
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.82f)
 private val MutedText = Color.White.copy(alpha = 0.62f)
@@ -239,7 +240,7 @@ fun NotifyScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // 1) 總開關
-                    GlassSettingCard(title = "總體") {
+                    GraySettingCard(title = "總體") {
                         SettingSwitchRow(
                             title = "啟用所有通知",
                             desc = "關閉後將不再接收任何提醒",
@@ -249,7 +250,7 @@ fun NotifyScreen(
                     }
 
                     // 2) 傳遞方式
-                    GlassSettingCard(title = "傳遞方式") {
+                    GraySettingCard(title = "傳遞方式") {
                         SettingSwitchRow(
                             title = "推播通知",
                             desc = "顯示在裝置通知中心",
@@ -274,7 +275,7 @@ fun NotifyScreen(
                     }
 
                     // 3) 要通知的內容
-                    GlassSettingCard(title = "通知內容") {
+                    GraySettingCard(title = "通知內容") {
                         SettingSwitchRow(
                             title = "運動/活動提醒",
                             desc = "每日目標、久坐提醒、活動紀錄",
@@ -302,7 +303,7 @@ fun NotifyScreen(
                     }
 
                     // 4) 勿擾模式
-                    GlassSettingCard(title = "勿擾模式") {
+                    GraySettingCard(title = "勿擾模式") {
                         SettingSwitchRow(
                             title = "排程勿擾",
                             desc = "在指定時段靜音通知",
@@ -332,13 +333,13 @@ fun NotifyScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            GlassOutlinedButton(
+                            GrayOutlinedButton(
                                 enabled = dndEnabled && !isSaving,
                                 onClick = { startPicker.show() },
                                 icon = Icons.Rounded.Schedule,
                                 text = "開始 $dndStart"
                             )
-                            GlassOutlinedButton(
+                            GrayOutlinedButton(
                                 enabled = dndEnabled && !isSaving,
                                 onClick = { endPicker.show() },
                                 icon = Icons.Rounded.Schedule,
@@ -362,10 +363,10 @@ fun NotifyScreen(
                             },
                             leadingIcon = { Icon(Icons.Rounded.Alarm, null, tint = PrimaryBlue) },
                             colors = AssistChipDefaults.assistChipColors(
-                                containerColor = Color.White.copy(alpha = 0.06f),
+                                containerColor = SolidGray,
                                 labelColor = PrimaryBlue,
                                 leadingIconContentColor = PrimaryBlue,
-                                disabledContainerColor = Color.White.copy(alpha = 0.06f),
+                                disabledContainerColor = SolidGray,
                                 disabledLabelColor = PrimaryBlue.copy(alpha = 0.55f),
                                 disabledLeadingIconContentColor = PrimaryBlue.copy(alpha = 0.55f)
                             ),
@@ -407,7 +408,6 @@ fun NotifyScreen(
     }
 }
 
-/* -------------------- 背景（暗色光暈） -------------------- */
 
 @Composable
 private fun DarkGlowBackground(modifier: Modifier = Modifier) {
@@ -443,10 +443,9 @@ private fun DarkGlowBackground(modifier: Modifier = Modifier) {
     )
 }
 
-/* -------------------- 玻璃卡片（避免「一塊」很明顯） -------------------- */
 
 @Composable
-private fun GlassSettingCard(
+private fun GraySettingCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -454,41 +453,11 @@ private fun GlassSettingCard(
 
     Card(
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = SolidGray), // ✅ 灰底
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
             .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-            .drawBehind {
-                val r = 22.dp.toPx()
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.06f),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color.Transparent
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height)
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.18f)
-                        ),
-                        startY = size.height * 0.35f,
-                        endY = size.height
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-            }
     ) {
         Column(
             Modifier.padding(16.dp),
@@ -511,7 +480,6 @@ private fun GlassSettingCard(
     }
 }
 
-/* -------------------- Switch Row -------------------- */
 
 @Composable
 private fun SettingSwitchRow(
@@ -521,12 +489,13 @@ private fun SettingSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     leading: @Composable (() -> Unit)? = null
 ) {
+    val rowShape = RoundedCornerShape(16.dp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.04f))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .background(RowGray, rowShape) // ✅ 灰底
+            .border(1.dp, Color.White.copy(alpha = 0.08f), rowShape)
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -566,10 +535,9 @@ private fun SettingSwitchRow(
     }
 }
 
-/* -------------------- 暗色描邊按鈕（修你原本 border Brush 型別問題） -------------------- */
 
 @Composable
-private fun GlassOutlinedButton(
+private fun GrayOutlinedButton(
     enabled: Boolean,
     onClick: () -> Unit,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -581,13 +549,13 @@ private fun GlassOutlinedButton(
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, Color.White.copy(alpha = if (enabled) 0.16f else 0.08f)),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = PrimaryBlue,
+            contentColor = PrimaryBlue,                       // ✅ icon/text 走 PrimaryBlue（你原本就這樣）
             disabledContentColor = PrimaryBlue.copy(alpha = 0.35f),
-            containerColor = Color.Transparent,
-            disabledContainerColor = Color.Transparent
+            containerColor = SolidGray,                       // ✅ 灰底
+            disabledContainerColor = SolidGray.copy(alpha = 0.65f)
         )
     ) {
-        Icon(icon, null)
+        Icon(icon, null) // ✅ 不指定 tint，就會吃 contentColor（PrimaryBlue）
         Spacer(Modifier.width(6.dp))
         Text(text, style = MaterialTheme.typography.labelLarge)
     }

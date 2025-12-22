@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,14 +29,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -43,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -58,6 +58,9 @@ import kotlin.math.cos
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+
+// ✅ 你要的：卡片改成「灰色按鈕/灰色卡片」底色
+private val SolidGray = Color(0xFF2A2A2A)
 
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.72f)
@@ -170,58 +173,61 @@ data class DevMember(
 private fun DeveloperCard(member: DevMember) {
     val shape = RoundedCornerShape(18.dp)
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = shape,
-        color = Color.White.copy(alpha = 0.08f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-        tonalElevation = 0.dp,
-        shadowElevation = 10.dp
+    // ✅ 改為「灰色純色卡片」：不動任何 icon/image 顏色
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 10.dp,
+                shape = shape,
+                clip = false
+            )
+            .clip(shape)
+            .background(SolidGray)
+            .border(
+                BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                shape = shape
+            )
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (member.imageRes != null) {
-                Image(
-                    painter = painterResource(id = member.imageRes),
-                    contentDescription = member.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                )
-            }
+        if (member.imageRes != null) {
+            Image(
+                painter = painterResource(id = member.imageRes),
+                contentDescription = member.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+            )
+        }
 
-            Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(16.dp))
 
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = member.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp
-                    ),
-                    color = TitleText
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = member.description,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                    color = Color.White.copy(alpha = 0.78f),
-                    maxLines = 3
-                )
-            }
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = member.name,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp
+                ),
+                color = TitleText
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = member.description,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = Color.White.copy(alpha = 0.78f),
+                maxLines = 3
+            )
         }
     }
 }
@@ -245,7 +251,6 @@ private fun BottomDecorBackground(
     modifier: Modifier = Modifier,
     tint: Color
 ) {
-    // ✅ 動畫必須在 Composable context 先算好，再丟給 Canvas 畫（不能放進 Canvas{} 裡）
     val infinite = rememberInfiniteTransition(label = "about_bg")
     val tRaw by infinite.animateFloat(
         initialValue = 0f,
@@ -262,7 +267,6 @@ private fun BottomDecorBackground(
         val w = size.width
         val h = size.height
 
-        // 底部藍光暈（你原本那個）
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -274,7 +278,6 @@ private fun BottomDecorBackground(
             )
         )
 
-        // 超淡霧面層（只讓背景不死黑，不會糊內容）
         val c1 = Color(0xFF0B1220).copy(alpha = 0.18f + 0.06f * t)
         val c2 = Color(0xFF111827).copy(alpha = 0.18f + 0.06f * (1f - t))
         drawRect(

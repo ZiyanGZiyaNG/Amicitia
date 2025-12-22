@@ -1,8 +1,5 @@
 package com.example.amicitia.ui.menu
 
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -17,26 +14,21 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -46,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
+import com.example.amicitia.ui.menu.chat.ChatScreen
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
@@ -54,10 +47,13 @@ import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import com.example.amicitia.ui.menu.chat.ChatScreen
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+
+// ✅ 純色 BottomBar（灰）
+private val BarSolid = Color(0xFF242424)
+private val BarBorder = Color.White.copy(alpha = 0.10f)
 
 private object MenuTabs {
     const val HOME = "menu_home"
@@ -82,9 +78,7 @@ private fun AuthBackground(
     modifier: Modifier = Modifier,
     successProgress: Float = 0f
 ) {
-    Box(
-        modifier = modifier.background(BgDark)
-    ) {
+    Box(modifier = modifier.background(BgDark)) {
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue,
@@ -141,7 +135,7 @@ fun MenuScreen(outerNavController: NavController) {
 
         Scaffold(
             containerColor = Color.Transparent,
-            bottomBar = { GlassBottomBar(navController = innerNav) }
+            bottomBar = { SolidBottomBar(navController = innerNav) } // ✅ 改純色
         ) { innerPadding ->
             val route = currentRoute(innerNav)
             val contentModifier =
@@ -184,7 +178,6 @@ private fun MenuNavHost(
         }
 
         composable(MenuTabs.MAP) { MapRoute() }
-
         composable(MenuTabs.CHAT) { ChatScreen() }
 
         composable(MenuTabs.PROFILE) {
@@ -200,15 +193,16 @@ private fun MenuNavHost(
     }
 }
 
-
 @Composable
 private fun currentRoute(navController: NavHostController): String? {
     val entry by navController.currentBackStackEntryAsState()
     return entry?.destination?.route
 }
 
+/* ---------------- 純色 BottomBar ---------------- */
+
 @Composable
-private fun GlassBottomBar(navController: NavHostController) {
+private fun SolidBottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
     val pillShape = RoundedCornerShape(28.dp)
 
@@ -219,62 +213,16 @@ private fun GlassBottomBar(navController: NavHostController) {
             .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
+        // ✅ 外層膠囊：純色 + 陰影 + 細邊框
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(18.dp, pillShape, clip = false)
                 .clip(pillShape)
+                .background(BarSolid)
+                .border(1.dp, BarBorder, pillShape)
         ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            Modifier.graphicsLayer {
-                                renderEffect = RenderEffect
-                                    .createBlurEffect(30f, 30f, Shader.TileMode.CLAMP)
-                                    .asComposeRenderEffect()
-                            }
-                        } else Modifier
-                    )
-                    .drawBehind {
-                        val r = 28.dp.toPx()
-
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = 0.14f),
-                            cornerRadius = CornerRadius(r, r)
-                        )
-
-                        drawRoundRect(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.20f),
-                                    Color.Transparent
-                                ),
-                                start = Offset(0f, 0f),
-                                end = Offset(size.width, size.height)
-                            ),
-                            cornerRadius = CornerRadius(r, r)
-                        )
-
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.18f)
-                                ),
-                                startY = size.height * 0.25f,
-                                endY = size.height
-                            ),
-                            cornerRadius = CornerRadius(r, r)
-                        )
-                    }
-                    .border(1.dp, Color.White.copy(alpha = 0.28f), pillShape)
-                    .padding(1.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), pillShape)
-            )
-
             NavigationBar(
                 containerColor = Color.Transparent,
                 tonalElevation = 0.dp,
@@ -300,7 +248,8 @@ private fun GlassBottomBar(navController: NavHostController) {
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = PrimaryBlue,
                             unselectedIconColor = Color.White.copy(alpha = 0.78f),
-                            indicatorColor = Color.White.copy(alpha = 0.10f)
+                            // ✅ 指示器也純色（比底色亮一點點的灰）
+                            indicatorColor = Color.White.copy(alpha = 0.08f)
                         ),
                         alwaysShowLabel = false
                     )

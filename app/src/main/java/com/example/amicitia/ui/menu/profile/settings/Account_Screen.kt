@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -69,9 +67,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -91,6 +87,10 @@ import kotlin.math.cos
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+
+// ✅ 你要的：灰色按鈕 / 灰色卡片（不改 icon 顏色，icon 照原本 PrimaryBlue / danger 走）
+private val SolidGray = Color(0xFF2A2A2A)
+
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.82f)
 private val MutedText = Color.White.copy(alpha = 0.62f)
@@ -315,10 +315,10 @@ fun AccountScreen(
                             },
                             leadingIcon = { Icon(Icons.Rounded.Security, null, tint = PrimaryBlue) },
                             colors = AssistChipDefaults.assistChipColors(
-                                containerColor = Color.White.copy(alpha = 0.06f),
+                                containerColor = SolidGray,
                                 labelColor = PrimaryBlue,
                                 leadingIconContentColor = PrimaryBlue,
-                                disabledContainerColor = Color.White.copy(alpha = 0.06f),
+                                disabledContainerColor = SolidGray,
                                 disabledLabelColor = PrimaryBlue.copy(alpha = 0.55f),
                                 disabledLeadingIconContentColor = PrimaryBlue.copy(alpha = 0.55f)
                             ),
@@ -360,10 +360,11 @@ fun AccountScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = danger,
                                     disabledContentColor = danger.copy(alpha = 0.35f),
-                                    containerColor = Color.Transparent
+                                    containerColor = SolidGray,            // ✅ 灰底
+                                    disabledContainerColor = SolidGray.copy(alpha = 0.65f)
                                 )
                             ) {
-                                Icon(Icons.Rounded.DeleteForever, null)
+                                Icon(Icons.Rounded.DeleteForever, null) // ✅ icon 顏色走 danger，不會被改
                                 Spacer(Modifier.width(6.dp))
                                 Text("刪除帳號", style = MaterialTheme.typography.labelLarge)
                             }
@@ -446,7 +447,7 @@ private fun DarkGlowBackground(modifier: Modifier = Modifier) {
     )
 }
 
-/* -------------------- UI：玻璃卡片（修掉你說的「那塊很明顯」） -------------------- */
+/* -------------------- UI：卡片改成灰色（不改 icon 顏色） -------------------- */
 
 @Composable
 private fun GlassSettingCard(
@@ -457,44 +458,11 @@ private fun GlassSettingCard(
 
     Card(
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = SolidGray), // ✅ 灰底
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
             .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-            .drawBehind {
-                val r = 22.dp.toPx()
-                // 基底（降低一整塊灰霧感）
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.06f),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                // 斜向高光（細一點）
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color.Transparent
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height)
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                // 底部陰影（更淡，避免「一塊」）
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.18f)
-                        ),
-                        startY = size.height * 0.35f,
-                        endY = size.height
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-            }
     ) {
         Column(
             Modifier.padding(16.dp),
@@ -517,7 +485,7 @@ private fun GlassSettingCard(
     }
 }
 
-/* -------------------- UI：按鈕（暗色描邊） -------------------- */
+/* -------------------- UI：按鈕改成灰色（不改 icon 顏色） -------------------- */
 
 @Composable
 private fun GlassOutlinedButton(
@@ -532,10 +500,13 @@ private fun GlassOutlinedButton(
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(1.dp, Color.White.copy(alpha = if (enabled) 0.16f else 0.08f)),
         colors = ButtonDefaults.outlinedButtonColors(
+            // ✅ 內容顏色維持 PrimaryBlue → 你的 Icon() 沒寫 tint 也會跟著走，不會被我硬改
             contentColor = PrimaryBlue,
             disabledContentColor = PrimaryBlue.copy(alpha = 0.35f),
-            containerColor = Color.Transparent,
-            disabledContainerColor = Color.Transparent
+
+            // ✅ 灰底
+            containerColor = SolidGray,
+            disabledContainerColor = SolidGray.copy(alpha = 0.65f)
         )
     ) {
         if (leading != null) {
@@ -721,8 +692,8 @@ private fun DarkOutlinedTextField(
             focusedLabelColor = PrimaryBlue,
             unfocusedLabelColor = MutedText,
             cursorColor = PrimaryBlue,
-            focusedContainerColor = Color.White.copy(alpha = 0.06f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.06f)
+            focusedContainerColor = SolidGray,
+            unfocusedContainerColor = SolidGray
         ),
         modifier = Modifier.fillMaxWidth()
     )

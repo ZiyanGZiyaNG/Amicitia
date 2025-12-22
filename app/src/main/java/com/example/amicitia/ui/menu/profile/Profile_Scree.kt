@@ -30,7 +30,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,18 +49,25 @@ import com.google.firebase.ktx.Firebase
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-// Profile 文字色（深色主題可讀）
+// ✅ 灰色系（Setting 選單也改灰底）
+private val SolidGray = Color(0xFF2A2A2A)
+private val RowGray = Color(0xFF242424)
+
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.70f)
 private val MutedText = Color.White.copy(alpha = 0.65f)
 private val DividerColor = Color.White.copy(alpha = 0.16f)
 
-// Sheet（深色玻璃）
+// Sheet 文字色
 private val SheetTitleColor = Color.White.copy(alpha = 0.92f)
 private val SheetRowText = Color.White.copy(alpha = 0.90f)
+
+// ✅ 不改你的 icon 顏色：仍是 PrimaryBlue
 private val SheetRowIcon = PrimaryBlue
-private val SheetRowGlass = Color.White.copy(alpha = 0.10f)
-private val SheetRowBorder = Color.White.copy(alpha = 0.14f)
+
+// ✅ Row/卡片底色改灰（不要玻璃白霧）
+private val SheetRowBg = SolidGray
+private val SheetRowBorder = Color.White.copy(alpha = 0.10f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,8 +105,7 @@ fun ProfileRoute(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         AuthBackground(modifier = Modifier.matchParentSize())
 
@@ -204,7 +209,7 @@ fun ProfileRoute(
                         recentActivities.forEach { activity ->
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White.copy(alpha = 0.08f),
+                                color = RowGray, // ✅ 灰色，不再用白霧
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
@@ -249,8 +254,7 @@ fun ProfileRoute(
             scrimColor = Color.Black.copy(alpha = 0.45f)
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // ✅ Sheet 背景同主題（深色 + 底部光暈）
                 Box(
@@ -263,8 +267,9 @@ fun ProfileRoute(
                     tint = PrimaryBlue
                 )
 
+                // ✅ 外框卡片：改灰底（不再玻璃白霧）
                 Surface(
-                    color = Color.White.copy(alpha = 0.06f),
+                    color = SolidGray,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -287,15 +292,19 @@ fun ProfileRoute(
                         )
 
                         SettingRow("帳號與安全", Icons.Rounded.Lock) {
+                            showSettingsSheet = false
                             outerNavController.navigate(Routes.ACCOUNT)
                         }
                         SettingRow("通知偏好", Icons.Rounded.Notifications) {
+                            showSettingsSheet = false
                             outerNavController.navigate(Routes.NOTIFY)
                         }
                         SettingRow("隱私與可見度", Icons.Rounded.Visibility) {
+                            showSettingsSheet = false
                             outerNavController.navigate(Routes.PRIVACY)
                         }
                         SettingRow("關於我們", Icons.Rounded.Info) {
+                            showSettingsSheet = false
                             outerNavController.navigate(Routes.ABOUT)
                         }
                         SettingRow("登出", Icons.AutoMirrored.Rounded.Logout) {
@@ -381,7 +390,7 @@ private fun SettingRow(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = SheetRowGlass,
+        color = SheetRowBg,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
         border = BorderStroke(1.dp, SheetRowBorder),

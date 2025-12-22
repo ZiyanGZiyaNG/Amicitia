@@ -54,6 +54,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,9 +65,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -86,6 +85,11 @@ import kotlin.math.cos
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+
+// ✅ 改成灰色卡片/按鈕/區塊（不動你的 icon tint：PrimaryBlue 仍照常用）
+private val SolidGray = Color(0xFF2A2A2A)
+private val RowGray = Color(0xFF242424)
+
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.82f)
 private val MutedText = Color.White.copy(alpha = 0.62f)
@@ -168,7 +172,7 @@ fun PrivacyScreen(
                             )
                         }
                     },
-                    colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = Color.Transparent
                     )
                 )
@@ -193,7 +197,7 @@ fun PrivacyScreen(
                         .navigationBarsPadding(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    GlassSettingCard(title = "可見度設定") {
+                    GraySettingCard(title = "可見度設定") {
                         SettingSwitchRow(
                             title = "顯示上線狀態",
                             desc = "讓好友知道你目前是否在線上",
@@ -214,7 +218,7 @@ fun PrivacyScreen(
                         )
                     }
 
-                    GlassSettingCard(title = "個人資料可見度") {
+                    GraySettingCard(title = "個人資料可見度") {
                         ExposedDropdownMenuBox(
                             expanded = expanded,
                             onExpandedChange = { expanded = !expanded }
@@ -231,9 +235,7 @@ fun PrivacyScreen(
                                     )
                                 },
                                 trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(
-                                        expanded = expanded
-                                    )
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -242,9 +244,9 @@ fun PrivacyScreen(
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = BodyText,
                                     unfocusedTextColor = BodyText,
-                                    focusedContainerColor = Color.White.copy(alpha = 0.06f),
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
-                                    disabledContainerColor = Color.White.copy(alpha = 0.06f),
+                                    focusedContainerColor = SolidGray,
+                                    unfocusedContainerColor = SolidGray,
+                                    disabledContainerColor = SolidGray,
                                     cursorColor = PrimaryBlue,
                                     focusedBorderColor = PrimaryBlue.copy(alpha = 0.85f),
                                     unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
@@ -259,7 +261,7 @@ fun PrivacyScreen(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false },
                                 shape = RoundedCornerShape(18.dp),
-                                containerColor = Color(0xFF242424),
+                                containerColor = SolidGray, // ✅ 灰底
                                 tonalElevation = 0.dp,
                                 shadowElevation = 18.dp
                             ) {
@@ -374,9 +376,9 @@ private fun FancyDropdownItemDark(
     )
 }
 
-/* -------------------- 玻璃卡片 -------------------- */
+/* -------------------- 灰色卡片（取代玻璃卡） -------------------- */
 @Composable
-private fun GlassSettingCard(
+private fun GraySettingCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -384,41 +386,11 @@ private fun GlassSettingCard(
 
     Card(
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = SolidGray),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
             .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-            .drawBehind {
-                val r = 22.dp.toPx()
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.06f),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color.Transparent
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height)
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.18f)
-                        ),
-                        startY = size.height * 0.35f,
-                        endY = size.height
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-            }
     ) {
         Column(
             Modifier.padding(16.dp),
@@ -441,7 +413,7 @@ private fun GlassSettingCard(
     }
 }
 
-/* -------------------- Switch Row -------------------- */
+/* -------------------- Switch Row（灰底） -------------------- */
 @Composable
 private fun SettingSwitchRow(
     title: String,
@@ -449,12 +421,13 @@ private fun SettingSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val shape = RoundedCornerShape(16.dp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.04f))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .background(RowGray, shape)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -489,7 +462,7 @@ private fun SettingSwitchRow(
     }
 }
 
-/* -------------------- 背景（暗色光暈） -------------------- */
+
 @Composable
 private fun DarkGlowBackground(modifier: Modifier = Modifier) {
     val infinite = rememberInfiniteTransition(label = "dark_glow_privacy")
