@@ -14,91 +14,78 @@ class ChatRepository(
     private val roomsCol get() = db.collection("rooms")
 
     fun observeRooms(myUid: String): Flow<List<Room>> = callbackFlow {
-        val q = roomsCol
-            .whereArrayContains("members", myUid)
+        val reg = roomsCol
             .orderBy("lastMessageAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                if (snap == null) return@addSnapshotListener
 
-        val reg = q.addSnapshotListener { snap, err ->
-            if (err != null) {
-                close(err); return@addSnapshotListener
+                val rooms = snap.documents.mapNotNull { d ->
+                    val membersRaw = d.get("members") as? List<*>
+                    val members = membersRaw?.mapNotNull { it as? String }.orEmpty()
+                    if (!members.contains(myUid)) return@mapNotNull null
+
+                    Room(
+                        roomId = d.id,
+                        members = members,
+                        lastMessageAt = d.getTimestamp("lastMessageAt"),
+                        lastMessageText = d.getString("lastMessageText"),
+                        lastMessageType = d.getString("lastMessageType"),
+                        lastReadAt = d.get("lastReadAt") as? Map<String, Timestamp>
+                    )
+                }
+
+                trySend(rooms)
             }
-            val rooms = snap?.documents.orEmpty().map { d ->
-                Room(
-                    roomId = d.id,
-                    members = d.get("members") as? List<String> ?: emptyList(),
-                    lastMessageAt = d.getTimestamp("lastMessageAt"),
-                    lastMessageText = d.getString("lastMessageText"),
-                    lastMessageType = d.getString("lastMessageType"),
-                    lastReadAt = d.get("lastReadAt") as? Map<String, Timestamp>
-                )
-            }
-            trySend(rooms)
-        }
+
         awaitClose { reg.remove() }
     }
 
-    fun observeMessages(roomId: String, limit: Long = 50): Flow<List<Message>> = callbackFlow {
-        val q = roomsCol.document(roomId)
+    fun observeMessages(roomId: String): Flow<List<Message>> = callbackFlow {
+        val reg = roomsCol.document(roomId)
             .collection("messages")
             .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(limit)
-
-        val reg = q.addSnapshotListener { snap, err ->
-            if (err != null) {
-                close(err); return@addSnapshotListener
-            }
-            val msgs = snap?.documents.orEmpty().map { d ->
-                Message(
-                    id = d.id,
-                    senderId = d.getString("senderId") ?: "",
-                    type = d.getString("type") ?: "text",
-                    text = d.getString("text") ?: "",
-                    createdAt = d.getTimestamp("createdAt")
-                )
-            }
-            trySend(msgs) // desc：新到舊
-        }
-        awaitClose { reg.remove() }
-    }
-
-    fun roomIdForTwoUids(uidA: String, uidB: String): String {
-        val (a, b) = listOf(uidA, uidB).sorted()
-        return "${a}_${b}"
-    }
-
-    fun ensureRoom(roomId: String, members: List<String>, onDone: (Boolean, Exception?) -> Unit) {
-        val ref = roomsCol.document(roomId)
-        ref.get()
-            .addOnSuccessListener { snap ->
-                if (snap.exists()) {
-                    onDone(true, null)
-                } else {
-                    val init = hashMapOf(
-                        "members" to members.sorted(),
-                        "lastMessageAt" to FieldValue.serverTimestamp(),
-                        "lastMessageText" to "",
-                        "lastMessageType" to "text",
-                        "lastReadAt" to members.associateWith { Timestamp(0, 0) }
-                    )
-                    ref.set(init)
-                        .addOnSuccessListener { onDone(true, null) }
-                        .addOnFailureListener { onDone(false, it) }
+            .addSnapshotListener { snap, err ->
+                if (err != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
                 }
+                if (snap == null) return@addSnapshotListener
+
+                val msgs = snap.documents.map { d ->
+                    val sender = d.getString("senderUid")
+                        ?: d.getString("senderId")
+                        ?: ""
+
+                    Message(
+                        id = d.id,
+                        senderId = sender,
+                        type = d.getString("type") ?: "text",
+                        text = d.getString("text") ?: "",
+                        createdAt = d.getTimestamp("createdAt")
+                    )
+                }
+
+                trySend(msgs)
             }
-            .addOnFailureListener { onDone(false, it) }
+
+        awaitClose { reg.remove() }
     }
 
     fun sendTextMessage(
         roomId: String,
         myUid: String,
         text: String,
-        onDone: (Boolean, Exception?) -> Unit
+        onDone: (ok: Boolean, err: Exception?) -> Unit
     ) {
         val roomRef = roomsCol.document(roomId)
         val msgRef = roomRef.collection("messages").document()
 
         val msgData = hashMapOf(
-            "senderId" to myUid,
+            "senderUid" to myUid,
             "type" to "text",
             "text" to text,
             "createdAt" to FieldValue.serverTimestamp()
@@ -106,11 +93,19 @@ class ChatRepository(
 
         val batch = db.batch()
         batch.set(msgRef, msgData)
-        batch.update(roomRef, mapOf(
-            "lastMessageAt" to FieldValue.serverTimestamp(),
-            "lastMessageText" to text,
-            "lastMessageType" to "text"
-        ))
+
+        // 更新 room 摘要（讓 Chat 列表自動更新）
+        batch.update(
+            roomRef, mapOf(
+                "lastMessageText" to text,
+                "lastMessageType" to "text",
+                "lastMessageAt" to FieldValue.serverTimestamp(),
+                "lastSenderUid" to myUid
+            )
+        )
+
+        // 我方已讀時間（最小可用）
+        batch.update(roomRef, "lastReadAt.$myUid", FieldValue.serverTimestamp())
 
         batch.commit()
             .addOnSuccessListener { onDone(true, null) }
@@ -118,12 +113,56 @@ class ChatRepository(
     }
 
     fun markRead(roomId: String, myUid: String) {
-        roomsCol.document(roomId).update("lastReadAt.$myUid", FieldValue.serverTimestamp())
+        // 你 DB 有 unreadCount 的話，也一起清；沒有也不會炸
+        roomsCol.document(roomId).update(
+            mapOf(
+                "lastReadAt.$myUid" to FieldValue.serverTimestamp(),
+                "unreadCount.$myUid" to 0
+            )
+        )
     }
 
     fun hasUnread(room: Room, myUid: String): Boolean {
         val last = room.lastMessageAt ?: return false
         val read = room.lastReadAt?.get(myUid) ?: return true
-        return last.seconds > read.seconds || (last.seconds == read.seconds && last.nanoseconds > read.nanoseconds)
+        return last.seconds > read.seconds ||
+                (last.seconds == read.seconds && last.nanoseconds > read.nanoseconds)
+    }
+
+    // ---- 給 ChatRoom TopBar 用：一次性讀 room + 讀 user ----
+
+    fun getRoomOnce(roomId: String, onDone: (Room?) -> Unit) {
+        roomsCol.document(roomId).get()
+            .addOnSuccessListener { d ->
+                if (!d.exists()) {
+                    onDone(null); return@addOnSuccessListener
+                }
+                val membersRaw = d.get("members") as? List<*>
+                val members = membersRaw?.mapNotNull { it as? String }.orEmpty()
+
+                onDone(
+                    Room(
+                        roomId = d.id,
+                        members = members,
+                        lastMessageAt = d.getTimestamp("lastMessageAt"),
+                        lastMessageText = d.getString("lastMessageText"),
+                        lastMessageType = d.getString("lastMessageType"),
+                        lastReadAt = d.get("lastReadAt") as? Map<String, Timestamp>
+                    )
+                )
+            }
+            .addOnFailureListener { onDone(null) }
+    }
+
+    fun getUserProfileOnce(uid: String, onDone: (nickname: String, avatarUrl: String) -> Unit) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { d ->
+                val nickname = d.getString("nickname").orEmpty().ifBlank { "使用者" }
+                val avatarUrl = d.getString("avatarUrl").orEmpty()
+                onDone(nickname, avatarUrl)
+            }
+            .addOnFailureListener {
+                onDone("使用者", "")
+            }
     }
 }

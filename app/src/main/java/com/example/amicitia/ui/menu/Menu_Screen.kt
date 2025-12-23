@@ -39,7 +39,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.amicitia.nav.Routes
-import com.example.amicitia.ui.menu.chat.ChatScreen
+import com.example.amicitia.ui.menu.chat.ChatNavHost
 import com.example.amicitia.ui.menu.home.HomeRoute
 import com.example.amicitia.ui.menu.home.run.MultiRunScreen
 import com.example.amicitia.ui.menu.home.run.RunModeScreen
@@ -67,8 +67,6 @@ private val bottomItems = listOf(
     BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
-
-
 
 @Composable
 private fun AuthBackground(
@@ -102,8 +100,6 @@ private fun BottomDecorBackground(
         )
     }
 }
-
-
 
 @Composable
 fun MenuScreen(outerNavController: NavController) {
@@ -149,7 +145,6 @@ fun MenuScreen(outerNavController: NavController) {
     }
 }
 
-
 @Composable
 private fun MenuNavHost(
     navController: NavHostController,
@@ -175,7 +170,10 @@ private fun MenuNavHost(
 
         composable(MenuTabs.MAP) { MapRoute() }
 
-        composable(route = MenuTabs.CHAT) { ChatScreen(navController = navController) }
+        // ✅ 關鍵：Chat 分頁用 ChatNavHost，並把 outerNavController 傳進去
+        composable(route = MenuTabs.CHAT) {
+            ChatNavHost(outerNavController = outerNavController)
+        }
 
         composable(MenuTabs.PROFILE) {
             ProfileRoute(
@@ -196,13 +194,10 @@ private fun currentRoute(navController: NavHostController): String? {
     return entry?.destination?.route
 }
 
-
-
 @Composable
 private fun SolidPillBottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
     val pillShape = RoundedCornerShape(28.dp)
-
 
     val barBase = BgDark
 
@@ -210,7 +205,6 @@ private fun SolidPillBottomBar(navController: NavHostController) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-
             .padding(start = 16.dp, end = 16.dp, bottom = 0.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -222,7 +216,6 @@ private fun SolidPillBottomBar(navController: NavHostController) {
                 .background(barBase)
                 .drawBehind {
                     val r = 28.dp.toPx()
-
 
                     drawRect(
                         brush = Brush.verticalGradient(

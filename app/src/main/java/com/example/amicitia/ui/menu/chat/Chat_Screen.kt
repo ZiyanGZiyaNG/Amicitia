@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -36,13 +37,20 @@ import java.util.*
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 private val CardSolidGray = Color(0xFF2A2A2A)
+private val AvatarBg = Color(0xFF3A3A3A)
 
 /* ---------------- Data ---------------- */
 
 private data class ChatRoomItem(
     val roomId: String,
+    val otherUid: String,
     val lastText: String,
     val lastAt: Timestamp?
+)
+
+private data class UserProfile(
+    val nickname: String,
+    val avatarUrl: String
 )
 
 /* ---------------- Background ---------------- */
@@ -71,13 +79,17 @@ private fun AuthBackground(modifier: Modifier = Modifier) {
 
 @Composable
 fun ChatScreen(
-    navController: NavHostController
+    outerNavController: NavController,
+    modifier: Modifier = Modifier
 ) {
     val uid = Firebase.auth.currentUser?.uid ?: return
     val db = remember { FirebaseFirestore.getInstance() }
 
     var rooms by remember { mutableStateOf<List<ChatRoomItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+
+    val profileCache = remember { mutableStateMapOf<String, UserProfile>() }
+    val inFlight = remember { mutableStateMapOf<String, Boolean>() }
 
     DisposableEffect(Unit) {
         val reg: ListenerRegistration =
@@ -90,20 +102,53 @@ fun ChatScreen(
                         val deletedFor = doc.get("deletedFor") as? Map<*, *>
                         if (deletedFor?.get(uid) == true) return@mapNotNull null
 
+                        val membersRaw = doc.get("members") as? List<*>
+                        val memberUids = membersRaw?.mapNotNull { it as? String }.orEmpty()
+                        if (!memberUids.contains(uid)) return@mapNotNull null
+
+                        val otherUid = memberUids.firstOrNull { it != uid } ?: return@mapNotNull null
+
                         ChatRoomItem(
                             roomId = doc.id,
+                            otherUid = otherUid,
                             lastText = doc.getString("lastMessageText") ?: "",
                             lastAt = doc.getTimestamp("lastMessageAt")
                         )
                     }
+
                     loading = false
                 }
 
         onDispose { reg.remove() }
     }
 
+    LaunchedEffect(rooms) {
+        val need = rooms.map { it.otherUid }.distinct()
+        need.forEach { otherUid ->
+            if (profileCache.containsKey(otherUid)) return@forEach
+            if (inFlight[otherUid] == true) return@forEach
+
+            inFlight[otherUid] = true
+
+            db.collection("users")
+                .document(otherUid)
+                .get()
+                .addOnSuccessListener { doc ->
+                    val nickname = doc.getString("nickname").orEmpty().ifBlank { "使用者" }
+                    val avatarUrl = doc.getString("avatarUrl").orEmpty()
+                    profileCache[otherUid] = UserProfile(nickname = nickname, avatarUrl = avatarUrl)
+                }
+                .addOnFailureListener {
+                    profileCache[otherUid] = UserProfile(nickname = "使用者", avatarUrl = "")
+                }
+                .addOnCompleteListener {
+                    inFlight.remove(otherUid)
+                }
+        }
+    }
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .systemBarsPadding()
     ) {
@@ -135,11 +180,14 @@ fun ChatScreen(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(rooms) { room ->
+                    items(rooms, key = { it.roomId }) { room ->
+                        val profile = profileCache[room.otherUid]
                         ChatItemCard(
                             room = room,
+                            nickname = profile?.nickname ?: "使用者",
+                            avatarUrl = profile?.avatarUrl ?: "",
                             onClick = {
-                                navController.navigate("room/${room.roomId}")
+                                outerNavController.navigate("room/${room.roomId}")
                             }
                         )
                     }
@@ -154,6 +202,8 @@ fun ChatScreen(
 @Composable
 private fun ChatItemCard(
     room: ChatRoomItem,
+    nickname: String,
+    avatarUrl: String,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
@@ -171,16 +221,42 @@ private fun ChatItemCard(
                 indication = null,
                 onClick = onClick
             )
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        AvatarCircle(
+            nickname = nickname,
+            avatarUrl = avatarUrl
+        )
+
+        Spacer(Modifier.width(12.dp))
+
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "聊天室",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White
-            )
-            Spacer(Modifier.height(2.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = nickname,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                room.lastAt?.let {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = formatTime(it),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.45f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
             Text(
                 text = room.lastText,
                 style = MaterialTheme.typography.bodySmall,
@@ -189,17 +265,31 @@ private fun ChatItemCard(
                 overflow = TextOverflow.Ellipsis
             )
         }
-
-        room.lastAt?.let {
-            Text(
-                text = formatTime(it),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.45f)
-            )
-        }
     }
 }
 
+@Composable
+private fun AvatarCircle(
+    nickname: String,
+    avatarUrl: String
+) {
+    val size = 52.dp
+    val initial = nickname.trim().firstOrNull()?.toString()?.uppercase(Locale.getDefault()) ?: "?"
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(AvatarBg),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial,
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White
+        )
+    }
+}
 
 private fun formatTime(ts: Timestamp): String {
     val date = ts.toDate()

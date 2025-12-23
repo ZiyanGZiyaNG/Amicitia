@@ -2,34 +2,15 @@ package com.example.amicitia.ui.menu.chat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavController
 
 @Composable
 fun ChatNavHost(
+    outerNavController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val navController = rememberNavController()
-
-    NavHost(
-        navController = navController,
-        startDestination = "rooms",
+    ChatScreen(
+        outerNavController = outerNavController,
         modifier = modifier
-    ) {
-        composable(route = "rooms") {
-            RoomsScreen(
-                onOpenRoom = {
-                    navController.navigate("room")
-                }
-            )
-        }
-
-        composable(route = "room") {
-            ChatRoomScreen(
-                roomId = "test_room_001",
-                onBack = { navController.popBackStack() }
-            )
-        }
-    }
+    )
 }

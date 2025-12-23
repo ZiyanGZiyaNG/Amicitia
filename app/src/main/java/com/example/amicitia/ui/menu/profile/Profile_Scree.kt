@@ -2,7 +2,6 @@ package com.example.amicitia.ui.menu.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,17 +33,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
-import com.example.amicitia.R
 import com.example.amicitia.nav.Routes
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.util.Locale
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
@@ -69,6 +67,9 @@ private val SheetRowIcon = PrimaryBlue
 private val SheetRowBg = SolidGray
 private val SheetRowBorder = Color.White.copy(alpha = 0.10f)
 
+// 跟 Chat 頁一致的頭像底色
+private val AvatarBg = Color(0xFF3A3A3A)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileRoute(
@@ -79,6 +80,7 @@ fun ProfileRoute(
     val user = Firebase.auth.currentUser
     var nickname by remember { mutableStateOf<String?>(null) }
     var bio by remember { mutableStateOf<String?>(null) }
+    var avatarUrl by remember { mutableStateOf<String?>(null) } // ✅ 新增：抓 avatarUrl
     var recentActivities by remember { mutableStateOf(listOf<String>()) }
     var totalMinutes by remember { mutableStateOf(0L) }
     var streakDays by remember { mutableStateOf(0L) }
@@ -96,6 +98,7 @@ fun ProfileRoute(
                 .addOnSuccessListener { doc ->
                     nickname = doc.getString("nickname")
                     bio = doc.getString("bio")
+                    avatarUrl = doc.getString("avatarUrl") // ✅ 新增
                     @Suppress("UNCHECKED_CAST")
                     recentActivities = doc.get("recentActivities") as? List<String> ?: emptyList()
                     totalMinutes = doc.getLong("totalExerciseMinutes") ?: 0L
@@ -128,12 +131,11 @@ fun ProfileRoute(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(96.dp)
-                            .clip(CircleShape)
+                    // ✅ 原本的 Image placeholder 改成跟 Chat 一樣的頭像樣式
+                    ProfileAvatarCircle(
+                        nickname = nickname ?: "使用者",
+                        avatarUrl = avatarUrl.orEmpty(), // 先保留，暫不載圖
+                        size = 96.dp
                     )
 
                     Row(
@@ -209,7 +211,7 @@ fun ProfileRoute(
                         recentActivities.forEach { activity ->
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = RowGray, // ✅ 灰色，不再用白霧
+                                color = RowGray,
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
@@ -256,7 +258,6 @@ fun ProfileRoute(
             Box(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // ✅ Sheet 背景同主題（深色 + 底部光暈）
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -267,7 +268,6 @@ fun ProfileRoute(
                     tint = PrimaryBlue
                 )
 
-                // ✅ 外框卡片：改灰底（不再玻璃白霧）
                 Surface(
                     color = SolidGray,
                     tonalElevation = 0.dp,
@@ -319,6 +319,34 @@ fun ProfileRoute(
                 }
             }
         }
+    }
+}
+
+/* ---------------- 頭像（跟 Chat 一樣的首字圓形頭像） ---------------- */
+
+@Composable
+private fun ProfileAvatarCircle(
+    nickname: String,
+    avatarUrl: String,
+    size: androidx.compose.ui.unit.Dp
+) {
+    // 目前不載 avatarUrl（你還沒 Coil）。先用首字頭像，視覺與 Chat 一致。
+    val initial = nickname.trim().firstOrNull()?.toString()?.uppercase(Locale.getDefault()) ?: "?"
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(AvatarBg),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = Color.White
+        )
     }
 }
 
