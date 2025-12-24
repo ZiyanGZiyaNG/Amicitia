@@ -10,7 +10,6 @@ fun ChatNavHost(
     modifier: Modifier = Modifier
 ) {
     ChatScreen(
-        outerNavController = outerNavController,
-        modifier = modifier
+        outerNavController = outerNavController
     )
 }

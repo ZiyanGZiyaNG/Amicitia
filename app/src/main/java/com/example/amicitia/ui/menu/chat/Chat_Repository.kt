@@ -13,6 +13,17 @@ class ChatRepository(
 ) {
     private val roomsCol get() = db.collection("rooms")
 
+    private fun parseLastReadAt(any: Any?): Map<String, Timestamp>? {
+        val raw = any as? Map<*, *> ?: return null
+        val out = mutableMapOf<String, Timestamp>()
+        for ((k, v) in raw) {
+            val key = k as? String ?: continue
+            val ts = v as? Timestamp ?: continue
+            out[key] = ts
+        }
+        return out
+    }
+
     fun observeRooms(myUid: String): Flow<List<Room>> = callbackFlow {
         val reg = roomsCol
             .orderBy("lastMessageAt", Query.Direction.DESCENDING)
@@ -28,13 +39,16 @@ class ChatRepository(
                     val members = membersRaw?.mapNotNull { it as? String }.orEmpty()
                     if (!members.contains(myUid)) return@mapNotNull null
 
+                    val deletedFor = d.get("deletedFor") as? Map<*, *>
+                    if (deletedFor?.get(myUid) == true) return@mapNotNull null
+
                     Room(
                         roomId = d.id,
                         members = members,
                         lastMessageAt = d.getTimestamp("lastMessageAt"),
                         lastMessageText = d.getString("lastMessageText"),
                         lastMessageType = d.getString("lastMessageType"),
-                        lastReadAt = d.get("lastReadAt") as? Map<String, Timestamp>
+                        lastReadAt = parseLastReadAt(d.get("lastReadAt"))
                     )
                 }
 
@@ -94,7 +108,6 @@ class ChatRepository(
         val batch = db.batch()
         batch.set(msgRef, msgData)
 
-        // 更新 room 摘要（讓 Chat 列表自動更新）
         batch.update(
             roomRef, mapOf(
                 "lastMessageText" to text,
@@ -104,7 +117,6 @@ class ChatRepository(
             )
         )
 
-        // 我方已讀時間（最小可用）
         batch.update(roomRef, "lastReadAt.$myUid", FieldValue.serverTimestamp())
 
         batch.commit()
@@ -113,7 +125,6 @@ class ChatRepository(
     }
 
     fun markRead(roomId: String, myUid: String) {
-        // 你 DB 有 unreadCount 的話，也一起清；沒有也不會炸
         roomsCol.document(roomId).update(
             mapOf(
                 "lastReadAt.$myUid" to FieldValue.serverTimestamp(),
@@ -122,21 +133,13 @@ class ChatRepository(
         )
     }
 
-    fun hasUnread(room: Room, myUid: String): Boolean {
-        val last = room.lastMessageAt ?: return false
-        val read = room.lastReadAt?.get(myUid) ?: return true
-        return last.seconds > read.seconds ||
-                (last.seconds == read.seconds && last.nanoseconds > read.nanoseconds)
-    }
-
-    // ---- 給 ChatRoom TopBar 用：一次性讀 room + 讀 user ----
-
     fun getRoomOnce(roomId: String, onDone: (Room?) -> Unit) {
         roomsCol.document(roomId).get()
             .addOnSuccessListener { d ->
                 if (!d.exists()) {
                     onDone(null); return@addOnSuccessListener
                 }
+
                 val membersRaw = d.get("members") as? List<*>
                 val members = membersRaw?.mapNotNull { it as? String }.orEmpty()
 
@@ -147,7 +150,7 @@ class ChatRepository(
                         lastMessageAt = d.getTimestamp("lastMessageAt"),
                         lastMessageText = d.getString("lastMessageText"),
                         lastMessageType = d.getString("lastMessageType"),
-                        lastReadAt = d.get("lastReadAt") as? Map<String, Timestamp>
+                        lastReadAt = parseLastReadAt(d.get("lastReadAt"))
                     )
                 )
             }
@@ -164,5 +167,30 @@ class ChatRepository(
             .addOnFailureListener {
                 onDone("使用者", "")
             }
+    }
+    fun observeTypingAt(roomId: String): Flow<Map<String, Timestamp>> = callbackFlow {
+        val reg = roomsCol.document(roomId)
+            .addSnapshotListener { snap, err ->
+                if (err != null) {
+                    trySend(emptyMap())
+                    return@addSnapshotListener
+                }
+                val raw = snap?.get("typingAt") as? Map<*, *>
+                val map = raw?.mapNotNull { (k, v) ->
+                    val uid = k as? String ?: return@mapNotNull null
+                    val ts = v as? Timestamp ?: return@mapNotNull null
+                    uid to ts
+                }?.toMap().orEmpty()
+                trySend(map)
+            }
+        awaitClose { reg.remove() }
+    }
+
+    fun setTyping(roomId: String, myUid: String) {
+        roomsCol.document(roomId).update("typingAt.$myUid", FieldValue.serverTimestamp())
+    }
+
+    fun clearTyping(roomId: String, myUid: String) {
+        roomsCol.document(roomId).update("typingAt.$myUid", FieldValue.delete())
     }
 }

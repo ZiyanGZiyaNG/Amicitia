@@ -170,9 +170,10 @@ private fun MenuNavHost(
 
         composable(MenuTabs.MAP) { MapRoute() }
 
-        // ✅ 關鍵：Chat 分頁用 ChatNavHost，並把 outerNavController 傳進去
         composable(route = MenuTabs.CHAT) {
-            ChatNavHost(outerNavController = outerNavController)
+           ChatNavHost(
+                outerNavController = outerNavController
+            )
         }
 
         composable(MenuTabs.PROFILE) {

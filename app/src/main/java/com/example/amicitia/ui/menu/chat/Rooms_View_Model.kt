@@ -28,5 +28,12 @@ class RoomsViewModel(
         }
     }
 
-    fun hasUnread(room: Room, myUid: String): Boolean = repo.hasUnread(room, myUid)
+    fun hasUnread(room: Room, myUid: String): Boolean {
+        val lastMessageAt = room.lastMessageAt ?: return false
+        val lastReadAt = room.lastReadAt?.get(myUid) ?: return true
+
+        return lastMessageAt.seconds > lastReadAt.seconds ||
+                (lastMessageAt.seconds == lastReadAt.seconds &&
+                        lastMessageAt.nanoseconds > lastReadAt.nanoseconds)
+    }
 }
