@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -63,6 +64,7 @@ fun ChatRoomScreen(
     vm: ChatRoomViewModel = viewModel()
 ) {
     val myUid = Firebase.auth.currentUser?.uid ?: return
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(roomId, myUid) { vm.start(roomId, myUid) }
     LaunchedEffect(roomId, myUid) { vm.markRead(roomId, myUid) }
@@ -75,19 +77,33 @@ fun ChatRoomScreen(
     val messagesAsc = remember(messagesDesc) { messagesDesc.asReversed() }
 
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-
     var input by remember { mutableStateOf("") }
 
-    // 初進入/新訊息來時：如果使用者在底部就跟上（簡化版）
+    // 進來後自動到底（簡化版：永遠跟到最新）
     LaunchedEffect(messagesAsc.size) {
         if (messagesAsc.isNotEmpty()) {
             listState.animateScrollToItem(messagesAsc.size - 1)
         }
     }
 
-    // 節流：避免每打一個字就寫 DB
-    var typingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    // ---------- typing debounce ----------
+    // 你要的是：開始輸入立刻寫入 typingAt；停止輸入一段時間才清掉。
+    var stopTypingJob by remember { mutableStateOf<Job?>(null) }
+    fun scheduleStopTyping() {
+        stopTypingJob?.cancel()
+        stopTypingJob = scope.launch {
+            delay(2000) // 2 秒沒打字就視為停止
+            vm.onStopTyping(roomId, myUid)
+        }
+    }
+
+    // 離開畫面 / 崩潰回收 / 返回：一定清掉自己的 typing
+    DisposableEffect(roomId, myUid) {
+        onDispose {
+            stopTypingJob?.cancel()
+            vm.onStopTyping(roomId, myUid)
+        }
+    }
 
     val homeFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
@@ -141,7 +157,7 @@ fun ChatRoomScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = {
-                            // 離開前清掉自己的 typing
+                            stopTypingJob?.cancel()
                             vm.onStopTyping(roomId, myUid)
                             onBack()
                         }) {
@@ -161,7 +177,6 @@ fun ChatRoomScreen(
                     .padding(padding)
                     .fillMaxSize()
             ) {
-
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
@@ -190,13 +205,15 @@ fun ChatRoomScreen(
                         onValueChange = { v ->
                             input = v
 
-                            // 有內容就視為正在輸入；節流寫入 typingAt
-                            typingJob?.cancel()
-                            typingJob = scope.launch {
-                                // 先稍微等一下，避免連續打字狂寫
-                                delay(900)
-                                if (input.isNotBlank()) vm.onTyping(roomId, myUid)
-                                else vm.onStopTyping(roomId, myUid)
+                            if (v.isBlank()) {
+                                stopTypingJob?.cancel()
+                                vm.onStopTyping(roomId, myUid)
+                            } else {
+                                // 立刻寫入 typingAt（這一步你之前缺）
+                                vm.onTyping(roomId, myUid)
+
+                                // 重新計時：一段時間沒打字才清掉
+                                scheduleStopTyping()
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -216,6 +233,11 @@ fun ChatRoomScreen(
                             vm.send(roomId, myUid, toSend) { ok ->
                                 if (ok) {
                                     input = ""
+
+                                    // 送出後：一定停止輸入（清掉 typingAt）
+                                    stopTypingJob?.cancel()
+                                    vm.onStopTyping(roomId, myUid)
+
                                     scope.launch {
                                         if (messagesAsc.isNotEmpty()) {
                                             listState.animateScrollToItem(messagesAsc.size - 1)

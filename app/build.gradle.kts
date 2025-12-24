@@ -92,6 +92,5 @@ dependencies {
 
     /* -------------------- Google Sign-In（若你有用） -------------------- */
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-
-
+    implementation("com.google.firebase:firebase-messaging-ktx")
 }
