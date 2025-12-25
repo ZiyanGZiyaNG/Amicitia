@@ -73,7 +73,8 @@ fun RunModeScreen(navController: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            // ✅ Icon 改成你要的「線條藍色」風格
+
+
             RunModeSolidCard(
                 title = "單人模式 SOLO",
                 description = "獨自專注配速與里程，適合個人訓練與測試實力",

@@ -93,4 +93,9 @@ dependencies {
     /* -------------------- Google Sign-In（若你有用） -------------------- */
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation("com.google.firebase:firebase-messaging-ktx")
+
+
+    implementation("io.coil-kt.coil3:coil:3.0.4")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
+    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
 }

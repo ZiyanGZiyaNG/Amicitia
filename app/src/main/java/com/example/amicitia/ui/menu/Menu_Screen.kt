@@ -47,6 +47,7 @@ import com.example.amicitia.ui.menu.map.MapRoute
 import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.example.amicitia.ui.menu.home.chat.RunTempChatScreen
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
@@ -185,8 +186,15 @@ private fun MenuNavHost(
         composable("run_mode") { RunModeScreen(navController) }
         composable("run_solo") { RunSoloScreen(navController = navController) }
 
-        // ✅ 關鍵：多人跑步頁一定要拿外層 outerNavController（AppNavHost 的那個）
+
         composable("run_multi") { MultiRunScreen(outerNavController = outerNavController) }
+        composable("run_temp_chat/{sessionId}") { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+            RunTempChatScreen(
+                navController = navController,
+                sessionId = sessionId
+            )
+        }
     }
 }
 
