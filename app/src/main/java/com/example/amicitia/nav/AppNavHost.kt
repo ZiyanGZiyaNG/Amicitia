@@ -17,6 +17,7 @@ import com.google.firebase.auth.ktx.auth
 import com.example.amicitia.ui.menu.home.run.RunSessionScreen
 import com.google.firebase.ktx.Firebase
 import com.example.amicitia.ui.menu.chat.ChatRoomScreen
+import com.example.amicitia.ui.menu.home.chat.RunTempChatScreen
 
 object Routes {
     const val LOGIN = "login"
@@ -74,6 +75,14 @@ fun AppNavHost(
             ChatRoomScreen(
                 roomId = roomId,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("run_temp_chat/{sessionId}") { backStack ->
+            val sessionId = backStack.arguments?.getString("sessionId") ?: return@composable
+            RunTempChatScreen(
+                navController = navController,
+                sessionId = sessionId
             )
         }
     }

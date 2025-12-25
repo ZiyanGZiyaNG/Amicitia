@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -102,7 +101,7 @@ private fun BottomDecorBackground(
 }
 
 @Composable
-fun MenuScreen(outerNavController: NavController) {
+fun MenuScreen(outerNavController: NavHostController) {
     val innerNav: NavHostController = rememberNavController()
     val auth = Firebase.auth
 
@@ -148,7 +147,7 @@ fun MenuScreen(outerNavController: NavController) {
 @Composable
 private fun MenuNavHost(
     navController: NavHostController,
-    outerNavController: NavController,
+    outerNavController: NavHostController,
     modifier: Modifier = Modifier,
     onLogout: () -> Unit
 ) {
@@ -171,7 +170,7 @@ private fun MenuNavHost(
         composable(MenuTabs.MAP) { MapRoute() }
 
         composable(route = MenuTabs.CHAT) {
-           ChatNavHost(
+            ChatNavHost(
                 outerNavController = outerNavController
             )
         }
@@ -185,7 +184,9 @@ private fun MenuNavHost(
 
         composable("run_mode") { RunModeScreen(navController) }
         composable("run_solo") { RunSoloScreen(navController = navController) }
-        composable("run_multi") { MultiRunScreen(navController) }
+
+        // ✅ 關鍵：多人跑步頁一定要拿外層 outerNavController（AppNavHost 的那個）
+        composable("run_multi") { MultiRunScreen(outerNavController = outerNavController) }
     }
 }
 
@@ -199,7 +200,6 @@ private fun currentRoute(navController: NavHostController): String? {
 private fun SolidPillBottomBar(navController: NavHostController) {
     val route = currentRoute(navController)
     val pillShape = RoundedCornerShape(28.dp)
-
     val barBase = BgDark
 
     Box(
@@ -218,6 +218,7 @@ private fun SolidPillBottomBar(navController: NavHostController) {
                 .drawBehind {
                     val r = 28.dp.toPx()
 
+                    // ✅ 修正：startY/endY 要放在 Brush.verticalGradient 裡，不是 drawRect
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -240,6 +241,7 @@ private fun SolidPillBottomBar(navController: NavHostController) {
                         ),
                         cornerRadius = CornerRadius(r, r)
                     )
+
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(

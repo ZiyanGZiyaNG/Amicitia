@@ -29,7 +29,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.navOptions
 import com.example.amicitia.session.SessionPresence
+import com.example.amicitia.ui.menu.home.chat.RunTempChatRepository
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.*
 import com.google.firebase.ktx.Firebase
@@ -95,8 +97,8 @@ private fun BottomDecorBackground(
                     tint.copy(alpha = 0.14f),
                     Color.Transparent
                 ),
-                center = Offset(w * 0.5f, h * 0.88f), // ✅ 跟 HomeRoute 一樣
-                radius = h * 0.75f                    // ✅ 跟 HomeRoute 一樣
+                center = Offset(w * 0.5f, h * 0.88f),
+                radius = h * 0.75f
             )
         )
     }
@@ -119,7 +121,7 @@ private fun SolidCard(
     Box(
         modifier = modifier
             .shadow(
-                elevation = 14.dp, // ✅ 跟 HomeRoute 一樣
+                elevation = 14.dp,
                 shape = shape,
                 clip = false
             )
@@ -141,7 +143,7 @@ private fun SolidCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MultiRunScreen(navController: NavHostController) {
+fun MultiRunScreen(outerNavController: NavHostController) {
 
     val auth = Firebase.auth
     val meUid = auth.currentUser?.uid
@@ -152,6 +154,8 @@ fun MultiRunScreen(navController: NavHostController) {
     val invitesSentRef = remember { db.getReference("invitesSent") }
     val sessionsRef = remember { db.getReference("sessions") }
 
+    val runTempRepo = remember { RunTempChatRepository() }
+
     var loading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -160,11 +164,11 @@ fun MultiRunScreen(navController: NavHostController) {
 
     val inviteUiMap = remember { mutableStateMapOf<String, InviteUiState>() }
 
-    val snackbar = remember { SnackbarHostState() }
+    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     fun pushSnack(msg: String) {
-        scope.launch { snackbar.showSnackbar(message = msg, withDismissAction = true) }
+        scope.launch { snackbarHostState.showSnackbar(message = msg, withDismissAction = true) }
     }
 
     DisposableEffect(meUid) {
@@ -268,10 +272,28 @@ fun MultiRunScreen(navController: NavHostController) {
                 }
 
                 if (status != "accepted") return
-                val sessionId = snapshot.child("sessionId").getValue(String::class.java) ?: return
+                val sessionId = snapshot.child("sessionId").getValue(String::class.java).orEmpty()
+                if (sessionId.isBlank()) {
+                    pushSnack("sessionId 讀取失敗，無法進入聊天室")
+                    return
+                }
 
-                SessionPresence.setInSession()
-                navController.navigate("run_session/$sessionId") { launchSingleTop = true }
+                val otherUid = snapshot.child("toUid").getValue(String::class.java).orEmpty()
+                val members = listOf(meUid, otherUid).filter { it.isNotBlank() }
+
+                scope.launch {
+                    try {
+                        runTempRepo.ensureRoom(sessionId = sessionId, members = members)
+                    } catch (e: Exception) {
+                        Log.e("MultiRun", "ensureRoom failed", e)
+                    }
+
+                    SessionPresence.setInSession()
+                    outerNavController.navigate(
+                        "run_temp_chat/$sessionId",
+                        navOptions { launchSingleTop = true }
+                    )
+                }
             }
 
             override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
@@ -325,6 +347,11 @@ fun MultiRunScreen(navController: NavHostController) {
         if (meUid == null) return
 
         val sessionId = UUID.randomUUID().toString()
+        if (sessionId.isBlank()) {
+            pushSnack("sessionId 生成失敗，無法進入聊天室")
+            return
+        }
+
         val sessionData = mapOf(
             "sport" to "run",
             "createdAt" to ServerValue.TIMESTAMP,
@@ -334,6 +361,7 @@ fun MultiRunScreen(navController: NavHostController) {
 
         sessionsRef.child(sessionId).setValue(sessionData)
             .addOnSuccessListener {
+
                 invitesRef.child(meUid).child(inv.inviteId).updateChildren(
                     mapOf("status" to "accepted", "sessionId" to sessionId)
                 )
@@ -342,8 +370,21 @@ fun MultiRunScreen(navController: NavHostController) {
                     mapOf("status" to "accepted", "sessionId" to sessionId)
                 )
 
-                SessionPresence.setInSession()
-                navController.navigate("run_session/$sessionId") { launchSingleTop = true }
+                val members = listOf(meUid, inv.fromUid).filter { it.isNotBlank() }
+
+                scope.launch {
+                    try {
+                        runTempRepo.ensureRoom(sessionId = sessionId, members = members)
+                    } catch (e: Exception) {
+                        Log.e("MultiRun", "ensureRoom failed", e)
+                    }
+
+                    SessionPresence.setInSession()
+                    outerNavController.navigate(
+                        "run_temp_chat/$sessionId",
+                        navOptions { launchSingleTop = true }
+                    )
+                }
             }
             .addOnFailureListener { e ->
                 pushSnack("接受邀請失敗：${e.message ?: "unknown"}")
@@ -370,12 +411,12 @@ fun MultiRunScreen(navController: NavHostController) {
 
         Scaffold(
             containerColor = Color.Transparent,
-            snackbarHost = { SnackbarHost(snackbar) },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 CenterAlignedTopAppBar(
                     title = { Text("多人跑步", color = TitleText) },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = { outerNavController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
@@ -400,7 +441,6 @@ fun MultiRunScreen(navController: NavHostController) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                // Header（✅ 顏色跟 HomeRoute 卡片一樣：SolidGray）
                 SolidCard(
                     backgroundColor = SolidGray,
                     contentPadding = 16.dp
@@ -427,7 +467,6 @@ fun MultiRunScreen(navController: NavHostController) {
                     }
                 }
 
-                // error（同色系卡片）
                 errorMsg?.let { msg ->
                     SolidCard(
                         backgroundColor = SolidGray,
@@ -448,7 +487,6 @@ fun MultiRunScreen(navController: NavHostController) {
                     }
                 }
 
-                // 收到邀請（同色系卡片）
                 incomingInvite?.let { inv ->
                     SolidCard(
                         backgroundColor = SolidGray,
@@ -538,7 +576,7 @@ fun MultiRunScreen(navController: NavHostController) {
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp), // ✅ 跟 HomeRoute 間距一致
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             contentPadding = PaddingValues(bottom = 12.dp)
                         ) {
                             items(candidates, key = { it.uid }) { u ->
@@ -555,8 +593,6 @@ fun MultiRunScreen(navController: NavHostController) {
         }
     }
 }
-
-/* ---------- Candidate card（跟 HomeRoute 卡片同色、同陰影、同圓角） ---------- */
 
 @Composable
 private fun CandidateCardSolid(
