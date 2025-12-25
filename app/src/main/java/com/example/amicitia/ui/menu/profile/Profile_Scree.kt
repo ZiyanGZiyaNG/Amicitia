@@ -322,7 +322,6 @@ fun ProfileRoute(
     }
 }
 
-/* ---------------- 頭像（跟 Chat 一樣的首字圓形頭像） ---------------- */
 
 @Composable
 private fun ProfileAvatarCircle(
@@ -330,7 +329,6 @@ private fun ProfileAvatarCircle(
     avatarUrl: String,
     size: androidx.compose.ui.unit.Dp
 ) {
-    // 目前不載 avatarUrl（你還沒 Coil）。先用首字頭像，視覺與 Chat 一致。
     val initial = nickname.trim().firstOrNull()?.toString()?.uppercase(Locale.getDefault()) ?: "?"
 
     Box(
@@ -350,7 +348,6 @@ private fun ProfileAvatarCircle(
     }
 }
 
-/* ---------------- 背景（跟 Login/Register/Home 一致） ---------------- */
 
 @Composable
 private fun AuthBackground(
@@ -384,8 +381,6 @@ private fun BottomDecorBackground(
         )
     }
 }
-
-/* ---------------- UI Pieces ---------------- */
 
 @Composable
 private fun StatItem(title: String, value: String) {

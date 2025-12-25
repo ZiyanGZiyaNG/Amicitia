@@ -21,7 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,13 +45,24 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.amicitia.nav.Routes
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.ktx.Firebase
 import com.google.maps.android.compose.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlin.math.max
+import androidx.compose.material3.Surface
+
 
 // =========================
 // Theme
@@ -56,9 +75,9 @@ private val TextPrimary = Color.White
 private val TextMuted = Color(0xB3FFFFFF)
 private val TextSubtle = Color(0x80FFFFFF)
 
-// 跟 Home 的 SolidColorCard 一致
 private val SolidGray = Color(0xFF2A2A2A)
 private val SolidBlack = Color(0xFF000000)
+private val SolidDanger = Color(0xFF8B0000) // Finish 深紅
 
 // =========================
 // State
@@ -128,7 +147,7 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onPause() {
-        stopTimer(true)
+        stopTimer(keep = true)
         stopLocationUpdates()
         stopStepCounter()
         _uiState.update { it.copy(state = RunState.PAUSED) }
@@ -139,11 +158,22 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
         startTimer()
     }
 
+    /** 取消/強制停止：回待機（不保留） */
     fun onStop() {
-        stopTimer(false)
+        stopTimer(keep = false)
         stopLocationUpdates()
         stopStepCounter()
         _uiState.value = SoloRunUiState()
+    }
+
+    /** 完成：回傳快照後回待機（保留給 UI 顯示/寫 DB） */
+    fun onFinishAndReset(): SoloRunUiState {
+        stopTimer(keep = false)
+        stopLocationUpdates()
+        stopStepCounter()
+        val snap = _uiState.value
+        _uiState.value = SoloRunUiState()
+        return snap
     }
 
     private fun startTimer() {
@@ -206,11 +236,15 @@ fun RunSoloScreen(navController: NavController) {
 
     val context = LocalContext.current
     val app = context.applicationContext as Application
+
     val vm: SoloRunViewModel = viewModel(factory = object : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(c: Class<T>): T =
-            SoloRunViewModel(app) as T
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(c: Class<T>): T = SoloRunViewModel(app) as T
     })
     val ui by vm.uiState.collectAsState()
+
+    val db = remember { FirebaseFirestore.getInstance() }
+    val uid = Firebase.auth.currentUser?.uid
 
     var hasPermission by remember { mutableStateOf(context.hasAnyLocationPermission()) }
 
@@ -240,6 +274,77 @@ fun RunSoloScreen(navController: NavController) {
         if (cameraState.isMoving && followMode) followMode = false
     }
 
+    var showFinishConfirm by remember { mutableStateOf(false) }
+    var showFinishResult by remember { mutableStateOf(false) }
+    var finishedSnapshot by remember { mutableStateOf<SoloRunUiState?>(null) }
+    var finishDbError by remember { mutableStateOf<String?>(null) }
+
+    if (showFinishConfirm) {
+        AlertDialog(
+            onDismissRequest = { showFinishConfirm = false },
+            title = { Text("完成跑步？") },
+            text = { Text("將結束本次跑步並把公里數加到跑步分數。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showFinishConfirm = false
+                        finishDbError = null
+
+                        val snap = vm.onFinishAndReset()
+                        finishedSnapshot = snap
+                        showFinishResult = true
+
+                        val userId = uid
+                        if (userId == null) {
+                            finishDbError = "未登入，無法寫入分數。"
+                        } else {
+                            val km = snap.distanceKm
+                            db.collection("users")
+                                .document(userId)
+                                .collection("sports")
+                                .document("run")
+                                .update("totalScore", FieldValue.increment(km))
+                                .addOnFailureListener { e ->
+                                    finishDbError = "寫入分數失敗：${e.message ?: "unknown"}"
+                                }
+                        }
+                    }
+                ) { Text("完成") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishConfirm = false }) { Text("取消") }
+            }
+        )
+    }
+
+    if (showFinishResult) {
+        val snap = finishedSnapshot
+        AlertDialog(
+            onDismissRequest = { showFinishResult = false },
+            title = { Text("本次跑步完成") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (snap == null) {
+                        Text("無法取得成績。")
+                    } else {
+                        Text("時間：${formatMillisHMS(snap.elapsedMillis)}")
+                        Text("距離：${String.format("%.2f", snap.distanceKm)} km")
+                        Text("步數：${snap.steps}")
+                    }
+                    finishDbError?.let { Text(it) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        navController.popBackStack()
+                        navController.popBackStack()
+                    }
+                ) { Text("關閉") }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = BgDark,
         topBar = {
@@ -264,29 +369,21 @@ fun RunSoloScreen(navController: NavController) {
                 .padding(bottom = 8.dp)
         ) {
 
-            // 1) 儀表板：改成 SolidCard（你截圖那塊也要）
+            // 固定高度：避免你說的「卡片大小會變」
             DashboardCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                ui = ui,
-                gpsText = gpsText(hasPermission, ui.lastLatLng)
+                ui = ui
             )
 
-            // 2) 地圖：不要卡片化
+            // 地圖永遠吃滿剩餘高度；控制列改成「覆蓋」在地圖底部，不再把 map 擠小
             Box(
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .weight(1f)
                     .shadow(18.dp, RoundedCornerShape(28.dp), clip = false)
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 28.dp,
-                            topEnd = 28.dp,
-                            bottomStart = 0.dp,
-                            bottomEnd = 0.dp
-                        )
-                    )
+                    .clip(RoundedCornerShape(28.dp))
             ) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
@@ -323,52 +420,51 @@ fun RunSoloScreen(navController: NavController) {
                         onClick = { followMode = !followMode }
                     )
                 }
+
+                // 控制列「覆蓋」在地圖底部（不佔 Column 空間，所以 map 不會被縮）
+                ModernControlBarOverlay(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(14.dp),
+                    state = ui.state,
+                    gpsReady = hasPermission && ui.lastLatLng != null,
+                    onPrimary = {
+                        when (ui.state) {
+                            RunState.IDLE -> {
+                                vm.onStart()
+                                if (hasPermission) {
+                                    vm.startLocationUpdates()
+                                    vm.startStepCounter()
+                                } else {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                            RunState.RUNNING -> vm.onPause()
+                            RunState.PAUSED -> {
+                                vm.onResume()
+                                if (hasPermission) {
+                                    vm.startLocationUpdates()
+                                    vm.startStepCounter()
+                                } else {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onStop = { vm.onStop() },
+                    onFinish = { showFinishConfirm = true }
+                )
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            // 3) 底部控制列：也改成 SolidCard（你截圖那塊也要）
-            ModernControlBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                state = ui.state,
-                gpsReady = hasPermission && ui.lastLatLng != null,
-                onPrimary = {
-                    when (ui.state) {
-                        RunState.IDLE -> {
-                            vm.onStart()
-                            if (hasPermission) {
-                                vm.startLocationUpdates()
-                                vm.startStepCounter()
-                            } else {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
-                            }
-                        }
-                        RunState.RUNNING -> vm.onPause()
-                        RunState.PAUSED -> {
-                            vm.onResume()
-                            if (hasPermission) {
-                                vm.startLocationUpdates()
-                                vm.startStepCounter()
-                            } else {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
-                            }
-                        }
-                    }
-                },
-                onStop = { vm.onStop() }
-            )
 
             Spacer(Modifier.height(12.dp))
         }
@@ -376,7 +472,7 @@ fun RunSoloScreen(navController: NavController) {
 }
 
 // =========================
-// Solid 卡片（完全照你 Home 的 SolidColorCard：shadow + clip + 無 ripple）
+// Solid 卡片（照你 Home：shadow + clip + 無 ripple）
 // =========================
 @Composable
 private fun SolidColorCard(
@@ -414,16 +510,15 @@ private fun SolidColorCard(
 }
 
 // =========================
-// DashboardCard：改成 SolidGray（你截圖那張也要一樣）
+// Dashboard：固定高度，不會因狀態改變而變大/變小
 // =========================
 @Composable
 private fun DashboardCard(
     modifier: Modifier,
-    ui: SoloRunUiState,
-    gpsText: String
+    ui: SoloRunUiState
 ) {
     SolidColorCard(
-        modifier = modifier,
+        modifier = modifier.height(108.dp),
         cornerDp = 24.dp,
         contentPadding = 16.dp,
         backgroundColor = SolidGray
@@ -505,7 +600,7 @@ private fun SmallRoundFab(
     active: Boolean = false,
     onClick: () -> Unit
 ) {
-    Surface(
+    androidx.compose.material3.Surface(
         onClick = onClick,
         shape = CircleShape,
         color = if (active) PrimaryBlue.copy(alpha = 0.20f) else GlassDark,
@@ -526,14 +621,14 @@ private fun SmallRoundFab(
 }
 
 // =========================
-// Solid 按鈕（照你 Home 的 SolidColorCard）
+// Solid 按鈕（照你 Home 的點擊感）
 // =========================
 @Composable
 private fun SolidActionButton(
     modifier: Modifier = Modifier,
     backgroundColor: Color = SolidBlack,
     cornerDp: Dp = 999.dp,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     onClick: () -> Unit,
     content: @Composable RowScope.() -> Unit
 ) {
@@ -564,14 +659,12 @@ private fun SolidIconButton(
     modifier: Modifier = Modifier,
     backgroundColor: Color = SolidBlack,
     size: Dp = 46.dp,
-    cornerDp: Dp = 999.dp,
     onClick: () -> Unit,
     icon: @Composable () -> Unit
 ) {
     SolidActionButton(
         modifier = modifier.size(size),
         backgroundColor = backgroundColor,
-        cornerDp = cornerDp,
         contentPadding = PaddingValues(0.dp),
         onClick = onClick
     ) {
@@ -583,72 +676,128 @@ private fun SolidIconButton(
 }
 
 // =========================
-// Control Bar：整張改成 SolidGray（你截圖那張也要一樣）
+// 控制列（覆蓋在 map 上）：不再把 map 擠小
+// 只改排版，不加新功能
 // =========================
 @Composable
-private fun ModernControlBar(
+private fun ModernControlBarOverlay(
     modifier: Modifier,
     state: RunState,
     gpsReady: Boolean,
     onPrimary: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    onFinish: () -> Unit
 ) {
+    val title = when (state) {
+        RunState.IDLE -> "準備開始跑步"
+        RunState.RUNNING -> "跑步中"
+        RunState.PAUSED -> "已暫停"
+    }
+    val sub = when (state) {
+        RunState.IDLE -> if (gpsReady) "GPS 已就緒｜可以開始" else "GPS 搜尋中｜建議等定位穩定再開始"
+        RunState.RUNNING -> "按 Pause 暫停"
+        RunState.PAUSED -> "按 Resume 繼續，或 Finish 結束"
+    }
+
     SolidColorCard(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         cornerDp = 24.dp,
-        contentPadding = 16.dp,
+        contentPadding = 14.dp,
         backgroundColor = SolidGray
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = when (state) {
-                        RunState.IDLE -> "準備開始跑步"
-                        RunState.RUNNING -> "跑步中"
-                        RunState.PAUSED -> "已暫停"
-                    },
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = when (state) {
-                        RunState.IDLE ->
-                            if (gpsReady) "GPS 已就緒｜建議開始記錄" else "GPS 搜尋中｜建議等定位穩定再開始"
-                        RunState.RUNNING -> "滑動地圖可解除跟隨"
-                        RunState.PAUSED -> "按 Resume 繼續記錄"
-                    },
-                    fontSize = 12.sp,
-                    color = TextSubtle
-                )
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            val (primaryIcon, primaryText) = when (state) {
-                RunState.IDLE -> Icons.Filled.PlayArrow to "Start"
-                RunState.RUNNING -> Icons.Filled.Pause to "Pause"
-                RunState.PAUSED -> Icons.Filled.PlayArrow to "Resume"
-            }
-
-            SolidActionButton(
-                backgroundColor = SolidBlack,
-                onClick = onPrimary
-            ) {
-                Icon(primaryIcon, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(6.dp))
-                Text(primaryText, fontWeight = FontWeight.SemiBold, color = Color.White)
-            }
-
-            if (state != RunState.IDLE) {
-                Spacer(Modifier.width(10.dp))
-                SolidIconButton(
-                    backgroundColor = SolidBlack,
-                    onClick = onStop
+        when (state) {
+            RunState.IDLE -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.Stop, contentDescription = null, tint = Color.White)
+                    Column(Modifier.weight(1f)) {
+                        Text(title, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text(sub, fontSize = 12.sp, color = TextSubtle)
+                    }
+
+                    SolidActionButton(
+                        backgroundColor = SolidBlack,
+                        onClick = onPrimary,
+                        modifier = Modifier.height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Start", fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
+                }
+            }
+
+            RunState.RUNNING -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(title, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text(sub, fontSize = 12.sp, color = TextSubtle)
+                    }
+
+                    SolidActionButton(
+                        backgroundColor = SolidBlack,
+                        onClick = onPrimary,
+                        modifier = Modifier.height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Filled.Pause, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Pause", fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    SolidIconButton(
+                        backgroundColor = SolidBlack,
+                        onClick = onStop,
+                        size = 46.dp
+                    ) {
+                        Icon(Icons.Filled.Stop, contentDescription = null, tint = Color.White)
+                    }
+                }
+            }
+
+            RunState.PAUSED -> {
+                // 這個狀態你的圖長這樣：上面文字，下面兩個大按鈕直排
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(title, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    Text(sub, fontSize = 12.sp, color = TextSubtle)
+                    Spacer(Modifier.height(12.dp))
+
+                    SolidActionButton(
+                        backgroundColor = SolidBlack,
+                        onClick = onPrimary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Resume", fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    SolidActionButton(
+                        backgroundColor = SolidDanger,
+                        onClick = onFinish,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Finish", fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
                 }
             }
         }
@@ -666,17 +815,6 @@ private fun formatMillisHMS(ms: Long): String {
     return String.format("%02d:%02d:%02d", h, m, s)
 }
 
-private fun gpsText(has: Boolean, last: LatLng?) =
-    when {
-        !has -> "GPS：未授權"
-        last == null -> "GPS：搜尋中"
-        else -> "GPS：良好"
-    }
-
 private fun Context.hasAnyLocationPermission(): Boolean =
-    ContextCompat.checkSelfPermission(
-        this, Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED

@@ -28,6 +28,7 @@ object Routes {
     const val PRIVACY = "privacy"
     const val ABOUT = "about"
     const val MAP = "map"
+    const val HOME = "home"
 }
 
 @Composable
@@ -61,6 +62,7 @@ fun AppNavHost(
         composable(Routes.NOTIFY)   { NotifyScreen(navController) }
         composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
         composable(Routes.ABOUT)    { AboutUsScreen(navController) }
+
 
         composable("run_session/{sessionId}") { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
