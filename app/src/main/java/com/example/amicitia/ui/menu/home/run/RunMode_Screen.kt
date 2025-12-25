@@ -2,40 +2,41 @@ package com.example.amicitia.ui.menu.home.run
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.amicitia.R
-import kotlin.random.Random
 
 /* --------- 色彩統一 --------- */
-
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
+private val SolidGray = Color(0xFF2A2A2A)
+private val SolidBlack = Color(0xFF000000)
+
 private val TitleText = Color.White.copy(alpha = 0.92f)
 private val BodyText = Color.White.copy(alpha = 0.68f)
 
 /* --------- Screen --------- */
-
 @Composable
 fun RunModeScreen(navController: NavController) {
     Box(
@@ -44,7 +45,6 @@ fun RunModeScreen(navController: NavController) {
             .background(BgDark)
             .systemBarsPadding()
     ) {
-        // ✅ 只保留底部光暈
         BottomDecorBackground(
             modifier = Modifier.matchParentSize(),
             tint = PrimaryBlue
@@ -73,21 +73,22 @@ fun RunModeScreen(navController: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            RunModeGlassCard(
+            // ✅ Icon 改成你要的「線條藍色」風格
+            RunModeSolidCard(
                 title = "單人模式 SOLO",
                 description = "獨自專注配速與里程，適合個人訓練與測試實力",
-                iconRes = R.drawable.ic_run,
-                isMulti = false,
+                icon = Icons.Outlined.DirectionsRun,
+                badgeText = "SOLO",
                 onClick = { navController.navigate("run_solo") }
             )
 
             Spacer(Modifier.height(14.dp))
 
-            RunModeGlassCard(
+            RunModeSolidCard(
                 title = "多人模式 MULTI",
                 description = "與好友一起開跑，比拼速度與堅持度，增加趣味與動力",
-                iconRes = R.drawable.ic_run,
-                isMulti = true,
+                icon = Icons.Outlined.Groups,
+                badgeText = "MULTI",
                 onClick = { navController.navigate("run_multi") }
             )
         }
@@ -95,7 +96,6 @@ fun RunModeScreen(navController: NavController) {
 }
 
 /* --------- 底部光暈 --------- */
-
 @Composable
 private fun BottomDecorBackground(
     modifier: Modifier = Modifier,
@@ -117,81 +117,70 @@ private fun BottomDecorBackground(
     }
 }
 
-/* --------- 玻璃卡片 --------- */
-
+/* --------- Solid Card（同 Home：shadow + clip + 無 ripple） --------- */
 @Composable
-private fun RunModeGlassCard(
-    title: String,
-    description: String,
-    iconRes: Int,
-    isMulti: Boolean,
-    onClick: () -> Unit
+private fun SolidColorCard(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = 24.dp,
+    contentPadding: Dp = 16.dp,
+    onClick: (() -> Unit)? = null,
+    backgroundColor: Color,
+    content: @Composable RowScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(cornerDp)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
+        modifier = modifier
+            .shadow(
+                elevation = 14.dp,
+                shape = shape,
+                clip = false
+            )
+            .clip(shape)
+            .background(backgroundColor)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onClick() }
+                } else Modifier
+            )
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+/* --------- Mode Card（Solid） --------- */
+@Composable
+private fun RunModeSolidCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    badgeText: String,
+    onClick: () -> Unit
+) {
+    SolidColorCard(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 112.dp)
-            .shadow(14.dp, shape, clip = false)
-            .clip(shape)
-            .drawBehind {
-                val r = 24.dp.toPx()
-
-                // 霧面底（避免中間白塊）
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.08f),
-                    cornerRadius = CornerRadius(r, r)
-                )
-
-                // 斜向高光（很淡）
-                drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.10f),
-                            Color.Transparent
-                        ),
-                        start = Offset.Zero,
-                        end = Offset(size.width, size.height)
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-
-                // 微霧點
-                repeat(60) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.02f),
-                        radius = Random.nextFloat() * 1.3f + 0.5f,
-                        center = Offset(
-                            Random.nextFloat() * size.width,
-                            Random.nextFloat() * size.height
-                        )
-                    )
-                }
-
-                // 底部厚度
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.22f)
-                        ),
-                        startY = size.height * 0.25f,
-                        endY = size.height
-                    ),
-                    cornerRadius = CornerRadius(r, r)
-                )
-            }
-            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .heightIn(min = 112.dp),
+        cornerDp = 24.dp,
+        contentPadding = 16.dp,
+        backgroundColor = SolidGray,
+        onClick = onClick
     ) {
-        ModeIcon(iconRes, isMulti, title)
+        ModeIconOutline(
+            icon = icon,
+            title = title
+        )
 
         Spacer(Modifier.width(14.dp))
 
-        Column(Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -204,55 +193,49 @@ private fun RunModeGlassCard(
                 color = BodyText
             )
         }
+
+        Spacer(Modifier.width(12.dp))
+
+        PillBadge(text = badgeText)
     }
 }
 
-/* --------- Icon --------- */
-
+/* --------- 右側 Badge（純黑） --------- */
 @Composable
-private fun ModeIcon(
-    iconRes: Int,
-    isMulti: Boolean,
+private fun PillBadge(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(SolidBlack)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White
+        )
+    }
+}
+
+/* --------- Icon（改成你要的：線條藍色、乾淨、無漸層背景） --------- */
+@Composable
+private fun ModeIconOutline(
+    icon: ImageVector,
     title: String
 ) {
     Box(
         modifier = Modifier
             .size(54.dp)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        PrimaryBlue,
-                        Color(0xFF6366F1)
-                    )
-                ),
-                shape = CircleShape
-            ),
+            .clip(CircleShape)
+            .background(Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
-        if (isMulti) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = title,
-                tint = Color.White.copy(alpha = 0.45f),
-                modifier = Modifier
-                    .size(25.dp)
-                    .offset(x = (-6).dp, y = (-6).dp)
-            )
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = title,
-                tint = Color.White,
-                modifier = Modifier
-                    .size(31.dp)
-                    .offset(x = (6).dp, y = (6).dp)
-            )
-        } else {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = title,
-                tint = Color.White,
-                modifier = Modifier.size(31.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = PrimaryBlue,
+            modifier = Modifier.size(32.dp)
+        )
     }
 }

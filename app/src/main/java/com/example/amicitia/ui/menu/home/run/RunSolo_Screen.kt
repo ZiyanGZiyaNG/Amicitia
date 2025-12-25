@@ -13,64 +13,55 @@ import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.GpsFixed
-import androidx.compose.material.icons.filled.GpsNotFixed
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlin.math.max
 
 // =========================
-// 深色系（跟你全站一致）
+// Theme
 // =========================
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-// 玻璃：深色底上的霧面
-private val GlassDark = Color(0x2BFFFFFF)      // 0x2B ≈ 17%
-private val GlassDarkStrong = Color(0x33FFFFFF) // 0x33 ≈ 20%
-private val BorderSoft = Color(0x22FFFFFF)
-
-// 文字
+private val GlassDark = Color(0x2BFFFFFF)
 private val TextPrimary = Color.White
-private val TextMuted = Color(0xB3FFFFFF)      // 70%
-private val TextSubtle = Color(0x80FFFFFF)     // 50%
+private val TextMuted = Color(0xB3FFFFFF)
+private val TextSubtle = Color(0x80FFFFFF)
+
+// 跟 Home 的 SolidColorCard 一致
+private val SolidGray = Color(0xFF2A2A2A)
+private val SolidBlack = Color(0xFF000000)
 
 // =========================
-// 狀態
+// State
 // =========================
 enum class RunState { IDLE, RUNNING, PAUSED }
 
@@ -84,22 +75,19 @@ data class SoloRunUiState(
 )
 
 // =========================
-// ViewModel（定位 + 計時 + 計步）
+// ViewModel
 // =========================
 class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val context: Context = app.applicationContext
-    private val fusedClient: FusedLocationProviderClient =
-        LocationServices.getFusedLocationProviderClient(context)
-
-    private val sensorManager =
-        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val context = app.applicationContext
+    private val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
     private var timerJob: Job? = null
-    private var accumulatedTime: Long = 0L
-    private var startTick: Long = 0L
+    private var accumulatedTime = 0L
+    private var startTick = 0L
 
-    private var totalDistanceMeters: Float = 0f
+    private var totalDistanceMeters = 0f
     private var lastLocation: android.location.Location? = null
 
     private var baseStepCount: Int? = null
@@ -111,25 +99,19 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val loc = result.lastLocation ?: return
+            if (loc.accuracy > 25f) return
 
-            // 精度太差不收點
-            val acc = loc.accuracy
-            if (acc.isNaN() || acc <= 0f || acc > 25f) return
-
-            val prev = lastLocation
-            if (prev != null) {
-                val d = prev.distanceTo(loc)
-                // 避免飄移
+            lastLocation?.let {
+                val d = it.distanceTo(loc)
                 if (d >= 1.5f) totalDistanceMeters += d
             }
-
             lastLocation = loc
-            val p = LatLng(loc.latitude, loc.longitude)
 
-            _uiState.update { s ->
-                s.copy(
+            val p = LatLng(loc.latitude, loc.longitude)
+            _uiState.update {
+                it.copy(
                     distanceKm = totalDistanceMeters / 1000.0,
-                    route = s.route + p,
+                    route = it.route + p,
                     lastLatLng = p
                 )
             }
@@ -137,44 +119,31 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onStart() {
-        if (_uiState.value.state == RunState.RUNNING) return
-
         totalDistanceMeters = 0f
         lastLocation = null
         accumulatedTime = 0L
         baseStepCount = null
-
-        _uiState.value = SoloRunUiState(
-            distanceKm = 0.0,
-            elapsedMillis = 0L,
-            steps = 0,
-            state = RunState.RUNNING,
-            route = emptyList(),
-            lastLatLng = null
-        )
-
+        _uiState.value = SoloRunUiState(state = RunState.RUNNING)
         startTimer()
     }
 
     fun onPause() {
-        if (_uiState.value.state != RunState.RUNNING) return
+        stopTimer(true)
         stopLocationUpdates()
         stopStepCounter()
-        stopTimer(keepAccumulated = true)
         _uiState.update { it.copy(state = RunState.PAUSED) }
     }
 
     fun onResume() {
-        if (_uiState.value.state != RunState.PAUSED) return
         _uiState.update { it.copy(state = RunState.RUNNING) }
         startTimer()
     }
 
     fun onStop() {
+        stopTimer(false)
         stopLocationUpdates()
         stopStepCounter()
-        stopTimer(keepAccumulated = false)
-        _uiState.update { it.copy(state = RunState.IDLE) }
+        _uiState.value = SoloRunUiState()
     }
 
     private fun startTimer() {
@@ -182,29 +151,24 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
         startTick = System.currentTimeMillis()
         timerJob = viewModelScope.launch {
             while (_uiState.value.state == RunState.RUNNING) {
-                val now = System.currentTimeMillis()
-                val elapsed = accumulatedTime + (now - startTick)
+                val elapsed = accumulatedTime + (System.currentTimeMillis() - startTick)
                 _uiState.update { it.copy(elapsedMillis = elapsed) }
-                delay(200L)
+                delay(1000)
             }
         }
     }
 
-    private fun stopTimer(keepAccumulated: Boolean) {
+    private fun stopTimer(keep: Boolean) {
         timerJob?.cancel()
         timerJob = null
-        accumulatedTime = if (keepAccumulated) _uiState.value.elapsedMillis else 0L
+        accumulatedTime = if (keep) _uiState.value.elapsedMillis else 0L
     }
 
     @SuppressLint("MissingPermission")
     fun startLocationUpdates() {
-        if (_uiState.value.state != RunState.RUNNING) return
-
-        val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
-            .setMinUpdateIntervalMillis(500L)
-            .setWaitForAccurateLocation(false)
-            .build()
-
+        val req = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY, 1000L
+        ).setMinUpdateIntervalMillis(500L).build()
         fusedClient.requestLocationUpdates(req, locationCallback, Looper.getMainLooper())
     }
 
@@ -213,167 +177,129 @@ class SoloRunViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startStepCounter() {
-        if (_uiState.value.state != RunState.RUNNING) return
-        val stepSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        if (stepSensor == null) return
+        val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) ?: return
         if (stepListener != null) return
 
         stepListener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                val raw = event.values.firstOrNull()?.toInt() ?: return
-                val base = baseStepCount
-                if (base == null) {
-                    baseStepCount = raw
-                    _uiState.update { it.copy(steps = 0) }
-                } else {
-                    val steps = max(0, raw - base)
-                    _uiState.update { it.copy(steps = steps) }
-                }
+            override fun onSensorChanged(e: SensorEvent) {
+                val raw = e.values[0].toInt()
+                if (baseStepCount == null) baseStepCount = raw
+                _uiState.update { it.copy(steps = max(0, raw - baseStepCount!!)) }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-
-        sensorManager.registerListener(stepListener, stepSensor, SensorManager.SENSOR_DELAY_UI)
+        sensorManager.registerListener(stepListener, sensor, SensorManager.SENSOR_DELAY_UI)
     }
 
     fun stopStepCounter() {
-        val l = stepListener ?: return
-        sensorManager.unregisterListener(l)
+        stepListener?.let { sensorManager.unregisterListener(it) }
         stepListener = null
     }
-
-    override fun onCleared() {
-        super.onCleared()
-        stopLocationUpdates()
-        stopStepCounter()
-        timerJob?.cancel()
-    }
-}
-
-class SoloRunVMFactory(private val app: Application) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = SoloRunViewModel(app) as T
 }
 
 // =========================
-// UI：深色底 + 地圖主視覺 + 玻璃浮層 + 右下 FAB + 底部控制列
+// UI
 // =========================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RunSoloScreen(navController: NavController) {
+
     val context = LocalContext.current
     val app = context.applicationContext as Application
-    val viewModel: SoloRunViewModel = viewModel(factory = SoloRunVMFactory(app))
-    val ui by viewModel.uiState.collectAsState()
+    val vm: SoloRunViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(c: Class<T>): T =
+            SoloRunViewModel(app) as T
+    })
+    val ui by vm.uiState.collectAsState()
 
-    // 權限（每次進來都重算一次，避免 remember 卡住）
-    var hasLocationPermission by remember {
-        mutableStateOf(context.hasAnyLocationPermission())
-    }
+    var hasPermission by remember { mutableStateOf(context.hasAnyLocationPermission()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { granted ->
-        val fine = granted[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        val coarse = granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        hasLocationPermission = fine || coarse
-
-        if (hasLocationPermission && ui.state == RunState.RUNNING) {
-            viewModel.startLocationUpdates()
-            viewModel.startStepCounter()
+    ) {
+        hasPermission = context.hasAnyLocationPermission()
+        if (hasPermission && ui.state == RunState.RUNNING) {
+            vm.startLocationUpdates()
+            vm.startStepCounter()
         }
     }
 
-    // 地圖相機
-    val cameraPositionState = rememberCameraPositionState {
+    val cameraState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(25.0330, 121.5654), 16f)
     }
 
-    // 跟隨模式
     var followMode by remember { mutableStateOf(true) }
 
     LaunchedEffect(ui.lastLatLng, followMode) {
         val last = ui.lastLatLng ?: return@LaunchedEffect
         if (!followMode) return@LaunchedEffect
-        cameraPositionState.position = CameraPosition.fromLatLngZoom(last, 17f)
+        cameraState.position = CameraPosition.fromLatLngZoom(last, 17f)
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.stopLocationUpdates()
-            viewModel.stopStepCounter()
-        }
+    LaunchedEffect(cameraState.isMoving) {
+        if (cameraState.isMoving && followMode) followMode = false
     }
 
     Scaffold(
         containerColor = BgDark,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "SOLO 跑步",
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                },
+                title = { Text("SOLO 跑步", color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = TextPrimary
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = TextPrimary,
-                    navigationIconContentColor = TextPrimary
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
-    ) { padding ->
+    ) { pad ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(pad)
                 .background(BgDark)
-                .padding(padding)
+                .navigationBarsPadding()
+                .padding(bottom = 8.dp)
         ) {
-            Box(
+
+            // 1) 儀表板：改成 SolidCard（你截圖那塊也要）
+            DashboardCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                ui = ui,
+                gpsText = gpsText(hasPermission, ui.lastLatLng)
+            )
+
+            // 2) 地圖：不要卡片化
+            Box(
+                modifier = Modifier
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .weight(1f)
+                    .shadow(18.dp, RoundedCornerShape(28.dp), clip = false)
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 28.dp,
+                            topEnd = 28.dp,
+                            bottomStart = 0.dp,
+                            bottomEnd = 0.dp
+                        )
+                    )
             ) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    properties = MapProperties(
-                        isMyLocationEnabled = hasLocationPermission
-                    ),
+                    cameraPositionState = cameraState,
+                    properties = MapProperties(isMyLocationEnabled = hasPermission),
                     uiSettings = MapUiSettings(
-                        zoomControlsEnabled = false,
                         myLocationButtonEnabled = false,
+                        zoomControlsEnabled = false,
                         mapToolbarEnabled = false
                     )
                 ) {
-                    if (ui.route.size >= 2) {
-                        Polyline(points = ui.route, width = 10f)
-                    }
+                    if (ui.route.size >= 2) Polyline(points = ui.route, width = 10f)
                 }
-
-                GlassStatsOverlay(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 14.dp),
-                    distanceKm = ui.distanceKm,
-                    elapsedMillis = ui.elapsedMillis,
-                    steps = ui.steps,
-                    gpsText = gpsText(hasLocationPermission, ui.lastLatLng),
-                    runState = ui.state
-                )
 
                 Column(
                     modifier = Modifier
@@ -387,11 +313,10 @@ fun RunSoloScreen(navController: NavController) {
                             val last = ui.lastLatLng
                             if (last != null) {
                                 followMode = true
-                                cameraPositionState.position = CameraPosition.fromLatLngZoom(last, 17f)
+                                cameraState.position = CameraPosition.fromLatLngZoom(last, 17f)
                             }
                         }
                     )
-
                     SmallRoundFab(
                         icon = if (followMode) Icons.Filled.GpsFixed else Icons.Filled.GpsNotFixed,
                         active = followMode,
@@ -400,20 +325,22 @@ fun RunSoloScreen(navController: NavController) {
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // 3) 底部控制列：也改成 SolidCard（你截圖那塊也要）
             ModernControlBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 state = ui.state,
+                gpsReady = hasPermission && ui.lastLatLng != null,
                 onPrimary = {
                     when (ui.state) {
                         RunState.IDLE -> {
-                            viewModel.onStart()
-                            if (hasLocationPermission) {
-                                viewModel.startLocationUpdates()
-                                viewModel.startStepCounter()
+                            vm.onStart()
+                            if (hasPermission) {
+                                vm.startLocationUpdates()
+                                vm.startStepCounter()
                             } else {
                                 permissionLauncher.launch(
                                     arrayOf(
@@ -423,12 +350,12 @@ fun RunSoloScreen(navController: NavController) {
                                 )
                             }
                         }
-                        RunState.RUNNING -> viewModel.onPause()
+                        RunState.RUNNING -> vm.onPause()
                         RunState.PAUSED -> {
-                            viewModel.onResume()
-                            if (hasLocationPermission) {
-                                viewModel.startLocationUpdates()
-                                viewModel.startStepCounter()
+                            vm.onResume()
+                            if (hasPermission) {
+                                vm.startLocationUpdates()
+                                vm.startStepCounter()
                             } else {
                                 permissionLauncher.launch(
                                     arrayOf(
@@ -440,96 +367,137 @@ fun RunSoloScreen(navController: NavController) {
                         }
                     }
                 },
-                onStop = { viewModel.onStop() }
+                onStop = { vm.onStop() }
             )
 
-            Spacer(Modifier.height(10.dp))
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
 
 // =========================
-// 組件：玻璃資訊卡（深色版）
+// Solid 卡片（完全照你 Home 的 SolidColorCard：shadow + clip + 無 ripple）
 // =========================
 @Composable
-private fun GlassStatsOverlay(
-    modifier: Modifier,
-    distanceKm: Double,
-    elapsedMillis: Long,
-    steps: Int,
-    gpsText: String,
-    runState: RunState
+private fun SolidColorCard(
+    modifier: Modifier = Modifier,
+    cornerDp: Dp = 24.dp,
+    contentPadding: Dp = 16.dp,
+    onClick: (() -> Unit)? = null,
+    backgroundColor: Color,
+    content: @Composable RowScope.() -> Unit
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp),
-        color = GlassDark,
-        shape = RoundedCornerShape(20.dp),
-        tonalElevation = 0.dp,
-        shadowElevation = 10.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    String.format("%.2f", distanceKm),
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    "km",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextMuted
-                )
+    val shape = RoundedCornerShape(cornerDp)
+    val interactionSource = remember { MutableInteractionSource() }
 
-                Spacer(Modifier.weight(1f))
+    Row(
+        modifier = modifier
+            .shadow(
+                elevation = 14.dp,
+                shape = shape,
+                clip = false
+            )
+            .clip(shape)
+            .background(backgroundColor)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onClick() }
+                } else Modifier
+            )
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+// =========================
+// DashboardCard：改成 SolidGray（你截圖那張也要一樣）
+// =========================
+@Composable
+private fun DashboardCard(
+    modifier: Modifier,
+    ui: SoloRunUiState,
+    gpsText: String
+) {
+    SolidColorCard(
+        modifier = modifier,
+        cornerDp = 24.dp,
+        contentPadding = 16.dp,
+        backgroundColor = SolidGray
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = formatMillisHMS(ui.elapsedMillis),
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text("Time", fontSize = 12.sp, color = TextSubtle)
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = String.format("%.2f", ui.distanceKm),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("km", fontSize = 14.sp, color = TextMuted)
+                    }
+                    Text("Distance", fontSize = 12.sp, color = TextSubtle)
+                }
+
+                Spacer(Modifier.width(12.dp))
 
                 Surface(
-                    color = GlassDarkStrong,
+                    color = SolidBlack,
                     shape = RoundedCornerShape(999.dp),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
+                    tonalElevation = 0.dp
                 ) {
                     Text(
-                        text = when (runState) {
+                        text = when (ui.state) {
                             RunState.IDLE -> "待機"
                             RunState.RUNNING -> "進行中"
                             RunState.PAUSED -> "已暫停"
                         },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         fontSize = 12.sp,
-                        color = TextPrimary
+                        color = Color.White
                     )
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
-
-            Text(
-                "${formatMillis(elapsedMillis)} · ${steps} steps",
-                fontSize = 13.sp,
-                color = TextMuted
-            )
-
-            Spacer(Modifier.height(6.dp))
-
-            Text(
-                gpsText,
-                fontSize = 12.sp,
-                color = TextSubtle
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Steps：${ui.steps}", fontSize = 13.sp, color = TextMuted)
+                Spacer(Modifier.weight(1f))
+            }
         }
     }
 }
 
 // =========================
-// 組件：圓形 FAB（深色版）
+// FAB（玻璃）
 // =========================
 @Composable
 private fun SmallRoundFab(
@@ -542,8 +510,7 @@ private fun SmallRoundFab(
         shape = CircleShape,
         color = if (active) PrimaryBlue.copy(alpha = 0.20f) else GlassDark,
         tonalElevation = 0.dp,
-        shadowElevation = 12.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
+        shadowElevation = 12.dp
     ) {
         Box(
             modifier = Modifier.size(46.dp),
@@ -559,41 +526,100 @@ private fun SmallRoundFab(
 }
 
 // =========================
-// 組件：底部控制列（深色版）
+// Solid 按鈕（照你 Home 的 SolidColorCard）
+// =========================
+@Composable
+private fun SolidActionButton(
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = SolidBlack,
+    cornerDp: Dp = 999.dp,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    onClick: () -> Unit,
+    content: @Composable RowScope.() -> Unit
+) {
+    val shape = RoundedCornerShape(cornerDp)
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Row(
+        modifier = modifier
+            .shadow(
+                elevation = 14.dp,
+                shape = shape,
+                clip = false
+            )
+            .clip(shape)
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+@Composable
+private fun SolidIconButton(
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = SolidBlack,
+    size: Dp = 46.dp,
+    cornerDp: Dp = 999.dp,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit
+) {
+    SolidActionButton(
+        modifier = modifier.size(size),
+        backgroundColor = backgroundColor,
+        cornerDp = cornerDp,
+        contentPadding = PaddingValues(0.dp),
+        onClick = onClick
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) { icon() }
+    }
+}
+
+// =========================
+// Control Bar：整張改成 SolidGray（你截圖那張也要一樣）
 // =========================
 @Composable
 private fun ModernControlBar(
     modifier: Modifier,
     state: RunState,
+    gpsReady: Boolean,
     onPrimary: () -> Unit,
     onStop: () -> Unit
 ) {
-    Surface(
+    SolidColorCard(
         modifier = modifier,
-        color = GlassDark,
-        shape = RoundedCornerShape(22.dp),
-        tonalElevation = 0.dp,
-        shadowElevation = 12.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
+        cornerDp = 24.dp,
+        contentPadding = 16.dp,
+        backgroundColor = SolidGray
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     text = when (state) {
-                        RunState.IDLE -> "Ready"
-                        RunState.RUNNING -> "Running"
-                        RunState.PAUSED -> "Paused"
+                        RunState.IDLE -> "準備開始跑步"
+                        RunState.RUNNING -> "跑步中"
+                        RunState.PAUSED -> "已暫停"
                     },
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
                 Text(
-                    text = "GPS / Steps / Timer",
+                    text = when (state) {
+                        RunState.IDLE ->
+                            if (gpsReady) "GPS 已就緒｜建議開始記錄" else "GPS 搜尋中｜建議等定位穩定再開始"
+                        RunState.RUNNING -> "滑動地圖可解除跟隨"
+                        RunState.PAUSED -> "按 Resume 繼續記錄"
+                    },
                     fontSize = 12.sp,
                     color = TextSubtle
                 )
@@ -607,56 +633,50 @@ private fun ModernControlBar(
                 RunState.PAUSED -> Icons.Filled.PlayArrow to "Resume"
             }
 
-            Button(
-                onClick = onPrimary,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                shape = RoundedCornerShape(999.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+            SolidActionButton(
+                backgroundColor = SolidBlack,
+                onClick = onPrimary
             ) {
                 Icon(primaryIcon, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(6.dp))
                 Text(primaryText, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
 
-            Spacer(Modifier.width(10.dp))
-
             if (state != RunState.IDLE) {
-                OutlinedButton(
-                    onClick = onStop,
-                    shape = RoundedCornerShape(999.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSoft)
+                Spacer(Modifier.width(10.dp))
+                SolidIconButton(
+                    backgroundColor = SolidBlack,
+                    onClick = onStop
                 ) {
-                    Icon(Icons.Filled.Stop, contentDescription = null)
+                    Icon(Icons.Filled.Stop, contentDescription = null, tint = Color.White)
                 }
             }
         }
     }
 }
 
+// =========================
+// Utils
+// =========================
+private fun formatMillisHMS(ms: Long): String {
+    val totalSec = (ms / 1000L).toInt().coerceAtLeast(0)
+    val h = totalSec / 3600
+    val m = (totalSec % 3600) / 60
+    val s = totalSec % 60
+    return String.format("%02d:%02d:%02d", h, m, s)
+}
 
-private fun gpsText(hasPermission: Boolean, last: LatLng?): String {
-    return when {
-        !hasPermission -> "GPS：未授權（請允許位置權限）"
-        last == null -> "GPS：搜尋中…"
+private fun gpsText(has: Boolean, last: LatLng?) =
+    when {
+        !has -> "GPS：未授權"
+        last == null -> "GPS：搜尋中"
         else -> "GPS：良好"
     }
-}
 
-private fun formatMillis(ms: Long): String {
-    val totalSec = (ms / 1000L).toInt()
-    val m = totalSec / 60
-    val s = totalSec % 60
-    return String.format("%02d:%02d", m, s)
-}
-
-private fun Context.hasAnyLocationPermission(): Boolean {
-    val fine = ContextCompat.checkSelfPermission(
+private fun Context.hasAnyLocationPermission(): Boolean =
+    ContextCompat.checkSelfPermission(
         this, Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
-    val coarse = ContextCompat.checkSelfPermission(
-        this, Manifest.permission.ACCESS_COARSE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
-    return fine || coarse
-}
+    ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
