@@ -252,7 +252,7 @@ fun RunTempChatScreen(
                 )
 
                 Text(text = "跑去哪裡", color = CardSub)
-                // ✅ 修正：這個輸入框也一起白字，避免又黑字
+
                 OutlinedTextField(
                     value = draftPlace,
                     onValueChange = { draftPlace = it },
@@ -333,7 +333,7 @@ private fun RunGoalCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "🏃 跑步目標",
+                    text = "跑步目標",
                     color = CardTitle,
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.weight(1f)
