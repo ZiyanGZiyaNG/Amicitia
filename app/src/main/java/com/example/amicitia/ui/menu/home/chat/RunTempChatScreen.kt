@@ -1,12 +1,13 @@
 package com.example.amicitia.ui.menu.home.chat
 
 import android.util.Log
-import android.view.ContextThemeWrapper
-import android.widget.NumberPicker
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,29 +15,54 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlin.math.abs
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
+// 卡片可讀性
 private val CardBg = Color.White.copy(alpha = 0.14f)
 private val CardTitle = Color.White.copy(alpha = 0.85f)
 private val CardSub = Color.White.copy(alpha = 0.75f)
 private val CardHint = Color.White.copy(alpha = 0.70f)
 private val CardIcon = Color.White.copy(alpha = 0.80f)
+
+@Composable
+private fun AuthBackground(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.background(BgDark)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        PrimaryBlue.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.5f, h * 0.88f),
+                    radius = h * 0.75f
+                )
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,8 +98,8 @@ fun RunTempChatScreen(
         scope.launch { snackbar.showSnackbar(msg) }
     }
 
+    // 目標狀態：地點＋開始時間
     var goalPlace by remember { mutableStateOf("") }
-
     val now = remember {
         Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) to it.get(Calendar.MINUTE) }
     }
@@ -82,218 +108,225 @@ fun RunTempChatScreen(
 
     var showGoalSheet by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = BgDark,
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
-                            model = otherAvatarUrl.ifBlank { null },
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.08f))
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = otherNickname,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text(
-                            text = "輸入訊息",
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.White.copy(alpha = 0.6f),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    )
-                )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+    ) {
+        AuthBackground(Modifier.fillMaxSize())
 
-                Spacer(Modifier.width(10.dp))
-
-                Button(
-                    onClick = {
-                        val msg = input.trim()
-                        if (msg.isBlank()) return@Button
-                        scope.launch {
-                            runCatching {
-                                repo.sendMessage(sessionId, meUid, msg)
-                            }.onFailure {
-                                Log.e("RunTempChat", "send failed", it)
-                                pushSnack("送出失敗")
-                            }
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbar) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = otherAvatarUrl.ifBlank { null },
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = otherNickname,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White
+                            )
                         }
-                        input = ""
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
-                ) { Text("送出") }
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            item {
-                RunGoalCard(
-                    place = goalPlace,
-                    startHour = goalStartHour,
-                    startMinute = goalStartMinute,
-                    onClick = { showGoalSheet = true }
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
-            }
-
-            items(messages, key = { it.id }) { m ->
-                val mine = m.senderUid == meUid
+            },
+            bottomBar = {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = {
+                            Text(
+                                text = "輸入訊息",
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        },
+                        singleLine = true,
                         shape = RoundedCornerShape(14.dp),
-                        color = if (mine) PrimaryBlue else Color.White.copy(alpha = 0.10f)
-                    ) {
-                        Text(
-                            text = m.text,
-                            color = Color.White,
-                            modifier = Modifier.padding(12.dp)
+                        textStyle = LocalTextStyle.current.copy(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color.White,
+                            focusedBorderColor = Color.White.copy(alpha = 0.6f),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
                         )
+                    )
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Button(
+                        onClick = {
+                            val msg = input.trim()
+                            if (msg.isBlank()) return@Button
+                            scope.launch {
+                                runCatching {
+                                    repo.sendMessage(sessionId, meUid, msg)
+                                }.onFailure {
+                                    Log.e("RunTempChat", "send failed", it)
+                                    pushSnack("送出失敗")
+                                }
+                            }
+                            input = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                    ) { Text("送出") }
+                }
+            }
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 12.dp)
+            ) {
+                item {
+                    RunGoalCard(
+                        place = goalPlace,
+                        startHour = goalStartHour,
+                        startMinute = goalStartMinute,
+                        onClick = { showGoalSheet = true }
+                    )
+                }
+
+                items(messages, key = { it.id }) { m ->
+                    val mine = m.senderUid == meUid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (mine) PrimaryBlue else Color.White.copy(alpha = 0.10f)
+                        ) {
+                            Text(
+                                text = m.text,
+                                color = Color.White,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 }
             }
         }
-    }
 
-    if (showGoalSheet) {
-        var draftPlace by remember(goalPlace) { mutableStateOf(goalPlace) }
-        var draftHour by remember(goalStartHour) { mutableStateOf(goalStartHour) }
-        var draftMinute by remember(goalStartMinute) { mutableStateOf(goalStartMinute) }
+        if (showGoalSheet) {
+            var draftPlace by remember(goalPlace) { mutableStateOf(goalPlace) }
+            var draftHour by remember(goalStartHour) { mutableStateOf(goalStartHour) }
+            var draftMinute by remember(goalStartMinute) { mutableStateOf(goalStartMinute) }
 
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-        ModalBottomSheet(
-            onDismissRequest = { showGoalSheet = false },
-            sheetState = sheetState,
-            containerColor = Color(0xFF222222),
-            contentColor = Color.White,
-            dragHandle = {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 8.dp, bottom = 4.dp)
-                        .width(36.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color.White.copy(alpha = 0.25f))
-                )
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp)
-                    .padding(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "跑步目標",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
-                )
-
-                Text(text = "跑去哪裡", color = CardSub)
-
-                OutlinedTextField(
-                    value = draftPlace,
-                    onValueChange = { draftPlace = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = "例如：河濱公園 / 校園操場",
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    textStyle = LocalTextStyle.current.copy(color = Color.White),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedBorderColor = PrimaryBlue.copy(alpha = 0.8f),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
+            ModalBottomSheet(
+                onDismissRequest = { showGoalSheet = false },
+                sheetState = sheetState,
+                containerColor = Color(0xFF222222),
+                contentColor = Color.White,
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp, bottom = 4.dp)
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color.White.copy(alpha = 0.25f))
                     )
-                )
-
-                Text(text = "幾點開始", color = CardSub)
-
-                WheelTimeInline(
-                    hour = draftHour,
-                    minute = draftMinute,
-                    onHourChange = { draftHour = it },
-                    onMinuteChange = { draftMinute = it }
-                )
-
-                Button(
-                    onClick = {
-                        goalPlace = draftPlace.trim()
-                        goalStartHour = draftHour
-                        goalStartMinute = draftMinute
-                        showGoalSheet = false
-                    },
+                }
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    shape = RoundedCornerShape(14.dp)
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp)
+                        .padding(bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("設定完成")
+                    Text(
+                        text = "跑步目標",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
+                    )
+
+                    Text(text = "跑去哪裡", color = CardSub)
+                    OutlinedTextField(
+                        value = draftPlace,
+                        onValueChange = { draftPlace = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                text = "要打完整地址喔",
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        textStyle = LocalTextStyle.current.copy(color = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color.White,
+                            focusedBorderColor = PrimaryBlue.copy(alpha = 0.8f),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+
+                    Text(text = "幾點開始", color = CardSub)
+
+                    WheelTimeInline(
+                        hour = draftHour,
+                        minute = draftMinute,
+                        onHourChange = { draftHour = it },
+                        onMinuteChange = { draftMinute = it }
+                    )
+
+                    Button(
+                        onClick = {
+                            goalPlace = draftPlace.trim()
+                            goalStartHour = draftHour
+                            goalStartMinute = draftMinute
+                            showGoalSheet = false
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("設定完成")
+                    }
                 }
             }
         }
@@ -340,7 +373,7 @@ private fun RunGoalCard(
             }
 
             Text(
-                text = if (hasGoal) "${place.trim()}" else "尚未設定跑步目標",
+                text = if (hasGoal) "地點：${place.trim()}" else "尚未設定跑步目標",
                 color = Color.White.copy(alpha = 0.90f),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
@@ -349,7 +382,7 @@ private fun RunGoalCard(
 
             if (hasGoal) {
                 Text(
-                    text = "$hh:$mm 開始",
+                    text = "時間：$hh:$mm",
                     color = CardSub,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -371,8 +404,13 @@ private fun WheelTimeInline(
     onHourChange: (Int) -> Unit,
     onMinuteChange: (Int) -> Unit
 ) {
-    val context = LocalContext.current
-    val highlightHeight = 46.dp
+    val itemHeight = 44.dp
+    val visibleCount = 5
+    val containerHeight = itemHeight * visibleCount
+
+    val colWidth = 128.dp
+    val gap = 24.dp
+    val colonWidth = 20.dp
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -381,74 +419,160 @@ private fun WheelTimeInline(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp)
+                .height(containerHeight)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
+            // 中間選中膠囊（用固定寬度排版，確保時/分完全對齊）
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.align(Alignment.Center),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .width(128.dp)
-                        .height(highlightHeight)
+                        .width(colWidth)
+                        .height(itemHeight)
                         .clip(RoundedCornerShape(14.dp))
                         .background(PrimaryBlue)
                 )
-                Spacer(Modifier.width(24.dp))
+
+                Spacer(Modifier.width(gap))
+
+                Box(
+                    modifier = Modifier.width(colonWidth),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = ":",
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+
+                Spacer(Modifier.width(gap))
+
                 Box(
                     modifier = Modifier
-                        .width(128.dp)
-                        .height(highlightHeight)
+                        .width(colWidth)
+                        .height(itemHeight)
                         .clip(RoundedCornerShape(14.dp))
                         .background(PrimaryBlue)
                 )
             }
 
+            // 兩個滾輪（同樣固定寬度排版）
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                AndroidView(
-                    modifier = Modifier.width(128.dp),
-                    factory = {
-                        NumberPicker(ContextThemeWrapper(context, android.R.style.Theme_Holo_Dialog_NoActionBar)).apply {
-                            minValue = 0
-                            maxValue = 23
-                            value = hour
-                            setFormatter { v -> v.toString().padStart(2, '0') }
-                            wrapSelectorWheel = true
-                            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
-                            selectionDividerHeight = 0
-                            setOnValueChangedListener { _, _, newVal -> onHourChange(newVal) }
-                        }
-                    },
-                    update = { if (it.value != hour) it.value = hour }
+                WheelColumn(
+                    width = colWidth,
+                    rangeMax = 23,
+                    initialValue = hour,
+                    itemHeight = itemHeight,
+                    visibleCount = visibleCount,
+                    onValueChange = onHourChange
                 )
 
+                Spacer(Modifier.width(gap))
+
+                Box(
+                    modifier = Modifier.width(colonWidth),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = ":",
+                        color = Color.Transparent,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+
+                Spacer(Modifier.width(gap))
+
+                WheelColumn(
+                    width = colWidth,
+                    rangeMax = 59,
+                    initialValue = minute,
+                    itemHeight = itemHeight,
+                    visibleCount = visibleCount,
+                    onValueChange = onMinuteChange
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WheelColumn(
+    width: Dp,
+    rangeMax: Int,
+    initialValue: Int,
+    itemHeight: Dp,
+    visibleCount: Int,
+    onValueChange: (Int) -> Unit
+) {
+    val paddingCount = visibleCount / 2
+    val values = remember(rangeMax, paddingCount) {
+        val list = mutableListOf<Int?>()
+        repeat(paddingCount) { list.add(null) }
+        for (v in 0..rangeMax) list.add(v)
+        repeat(paddingCount) { list.add(null) }
+        list
+    }
+
+    val startIndex = remember(initialValue, paddingCount) { initialValue + paddingCount }
+    val state = rememberLazyListState(
+        initialFirstVisibleItemIndex = (startIndex - paddingCount).coerceAtLeast(0)
+    )
+
+    val fling = rememberSnapFlingBehavior(lazyListState = state)
+
+    val density = LocalDensity.current
+
+    LaunchedEffect(state, values, paddingCount, itemHeight) {
+        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+            .collect { (idx, offsetPx) ->
+                val itemPx = with(density) { itemHeight.toPx() }.coerceAtLeast(1f)
+                val shift = if (offsetPx / itemPx >= 0.5f) 1 else 0
+                val centerIndex = idx + paddingCount + shift
+                val v = values.getOrNull(centerIndex) ?: return@collect
+                onValueChange(v)
+            }
+    }
+
+    LazyColumn(
+        modifier = Modifier.width(width),
+        state = state,
+        flingBehavior = fling,
+        contentPadding = PaddingValues(vertical = 0.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        items(values.size) { i ->
+            val v = values[i]
+            val text = v?.toString()?.padStart(2, '0') ?: ""
+
+            val center = state.firstVisibleItemIndex + paddingCount
+            val dist = abs(i - center).coerceAtMost(paddingCount + 1)
+
+            val alpha = when (dist) {
+                0 -> 1.0f
+                1 -> 0.55f
+                2 -> 0.28f
+                else -> 0.16f
+            }
+
+            Box(
+                modifier = Modifier
+                    .height(itemHeight)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = ":",
-                    color = Color.White.copy(alpha = 0.9f),
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                AndroidView(
-                    modifier = Modifier.width(128.dp),
-                    factory = {
-                        NumberPicker(ContextThemeWrapper(context, android.R.style.Theme_Holo_Dialog_NoActionBar)).apply {
-                            minValue = 0
-                            maxValue = 59
-                            value = minute
-                            setFormatter { v -> v.toString().padStart(2, '0') }
-                            wrapSelectorWheel = true
-                            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
-                            selectionDividerHeight = 0
-                            setOnValueChangedListener { _, _, newVal -> onMinuteChange(newVal) }
-                        }
-                    },
-                    update = { if (it.value != minute) it.value = minute }
+                    text = text,
+                    color = Color.White.copy(alpha = alpha),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
                 )
             }
         }
