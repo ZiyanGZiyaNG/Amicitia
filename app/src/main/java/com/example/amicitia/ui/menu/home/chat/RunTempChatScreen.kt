@@ -28,13 +28,10 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import android.graphics.drawable.ColorDrawable
-import android.os.Build
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
 
-// 讓卡片「一定看得到」的安全值
 private val CardBg = Color.White.copy(alpha = 0.14f)
 private val CardTitle = Color.White.copy(alpha = 0.85f)
 private val CardSub = Color.White.copy(alpha = 0.75f)
@@ -75,7 +72,6 @@ fun RunTempChatScreen(
         scope.launch { snackbar.showSnackbar(msg) }
     }
 
-    // ===== 目標狀態：地點＋開始時間（滾輪）=====
     var goalPlace by remember { mutableStateOf("") }
 
     val now = remember {
@@ -129,7 +125,6 @@ fun RunTempChatScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ✅ 修正：輸入文字改白色（含游標、placeholder）
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
@@ -213,7 +208,6 @@ fun RunTempChatScreen(
         }
     }
 
-    // ===== BottomSheet：地點＋滾輪時間（直接顯示滾輪）=====
     if (showGoalSheet) {
         var draftPlace by remember(goalPlace) { mutableStateOf(goalPlace) }
         var draftHour by remember(goalStartHour) { mutableStateOf(goalStartHour) }
@@ -346,7 +340,7 @@ private fun RunGoalCard(
             }
 
             Text(
-                text = if (hasGoal) "📍 ${place.trim()}" else "尚未設定跑步目標",
+                text = if (hasGoal) "${place.trim()}" else "尚未設定跑步目標",
                 color = Color.White.copy(alpha = 0.90f),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
@@ -355,7 +349,7 @@ private fun RunGoalCard(
 
             if (hasGoal) {
                 Text(
-                    text = "🕒 $hh:$mm 開始",
+                    text = "$hh:$mm 開始",
                     color = CardSub,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -389,7 +383,6 @@ private fun WheelTimeInline(
                 .fillMaxWidth()
                 .padding(vertical = 14.dp)
         ) {
-            // ===== 選中列：跟「設定完成」同色 =====
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -413,7 +406,6 @@ private fun WheelTimeInline(
                 )
             }
 
-            // ===== 滾輪本體（移除內建藍線：selectionDividerHeight = 0）=====
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
