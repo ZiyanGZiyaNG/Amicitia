@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,12 +113,20 @@ fun RunTempChatScreen(
     val myReady = room.ready[meUid] == true
     val otherReadyNow = otherUid.isNotBlank() && room.ready[otherUid] == true
 
-    // 兩邊都就緒 -> 跳到 run_solo
+    // ✅ 新增：避免重複 navigate（兩人都 /finish 時只跳一次）
+    var hasNavigated by rememberSaveable(sessionId) { mutableStateOf(false) }
+
+    // ✅ 兩邊都就緒 -> 跳到 run_solo（並清掉 run_multi 返回堆疊）
     LaunchedEffect(myReady, otherReadyNow) {
+        if (hasNavigated) return@LaunchedEffect
         if (myReady && otherReadyNow) {
+            hasNavigated = true
             navController.navigate(
                 "run_solo",
-                navOptions { launchSingleTop = true }
+                navOptions {
+                    launchSingleTop = true
+                    popUpTo("run_multi") { inclusive = true }
+                }
             )
         }
     }
@@ -209,17 +218,14 @@ fun RunTempChatScreen(
                             if (raw.isBlank()) return@Button
 
                             scope.launch {
-                                // 指令處理
                                 val lower = raw.lowercase()
 
-                                // /help
                                 if (lower == "/help") {
                                     showHelp = true
                                     input = ""
                                     return@launch
                                 }
 
-                                // /finish /unfinish
                                 if (lower == "/finish") {
                                     runCatching {
                                         repo.setReady(sessionId, meUid, true)
@@ -242,7 +248,6 @@ fun RunTempChatScreen(
                                     return@launch
                                 }
 
-                                // /locate xxx 或 /location xxx
                                 if (lower.startsWith("/locate ") || lower.startsWith("/location ")) {
                                     val place = raw.substringAfter(' ').trim()
                                     if (place.isBlank()) {
@@ -259,7 +264,6 @@ fun RunTempChatScreen(
                                     return@launch
                                 }
 
-                                // /time HH:MM
                                 if (lower.startsWith("/time ")) {
                                     val t = raw.substringAfter(' ').trim()
                                     val parts = t.split(":")
@@ -283,7 +287,6 @@ fun RunTempChatScreen(
                                     return@launch
                                 }
 
-                                // 一般訊息
                                 runCatching {
                                     repo.sendMessage(sessionId, meUid, raw)
                                 }.onFailure {
@@ -338,7 +341,6 @@ fun RunTempChatScreen(
             }
         }
 
-        // BottomSheet：地點＋滾輪時間（按「設定完成」寫 DB，兩台同步）
         if (showGoalSheet) {
             var draftPlace by remember(room.goalPlace) { mutableStateOf(room.goalPlace) }
             var draftHour by remember(room.goalStartHour) { mutableStateOf(room.goalStartHour.coerceIn(0, 23)) }
@@ -440,7 +442,6 @@ fun RunTempChatScreen(
             }
         }
 
-        // /help：極簡，且只在送出 /help 時出現
         if (showHelp) {
             AlertDialog(
                 onDismissRequest = { showHelp = false },
