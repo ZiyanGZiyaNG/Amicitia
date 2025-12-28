@@ -22,6 +22,7 @@ data class RunRoomState(
     val goalStartHour: Int = 0,
     val goalStartMinute: Int = 0,
     val ready: Map<String, Boolean> = emptyMap(),
+    val finished: Map<String, Boolean> = emptyMap(), // 新增
     val members: List<String> = emptyList()
 )
 
@@ -67,11 +68,20 @@ class RunTempChatRepository(
             val m = (snap.getLong("goalStartMinute") ?: 0L).toInt().coerceIn(0, 59)
 
             val readyAny = snap.get("ready")
-            val readyMap: Map<String, Boolean> = (readyAny as? Map<*, *>)?.mapNotNull { (k, v) ->
-                val key = k as? String ?: return@mapNotNull null
-                val b = v as? Boolean ?: return@mapNotNull null
-                key to b
-            }?.toMap().orEmpty()
+            val readyMap: Map<String, Boolean> =
+                (readyAny as? Map<*, *>)?.mapNotNull { (k, v) ->
+                    val key = k as? String ?: return@mapNotNull null
+                    val b = v as? Boolean ?: return@mapNotNull null
+                    key to b
+                }?.toMap().orEmpty()
+
+            val finishedAny = snap.get("finished")
+            val finishedMap: Map<String, Boolean> =
+                (finishedAny as? Map<*, *>)?.mapNotNull { (k, v) ->
+                    val key = k as? String ?: return@mapNotNull null
+                    val b = v as? Boolean ?: return@mapNotNull null
+                    key to b
+                }?.toMap().orEmpty()
 
             val members = (snap.get("members") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
 
@@ -81,6 +91,7 @@ class RunTempChatRepository(
                     goalStartHour = h,
                     goalStartMinute = m,
                     ready = readyMap,
+                    finished = finishedMap,
                     members = members
                 )
             )
@@ -90,21 +101,67 @@ class RunTempChatRepository(
 
     suspend fun ensureRoom(sessionId: String, members: List<String>) {
         val roomRef = roomDoc(sessionId)
-        val snapshot = roomRef.get().await()
-        if (snapshot.exists()) return
+        val cleanMembers = members.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        if (cleanMembers.isEmpty()) return
 
-        val data = mapOf(
-            "sessionId" to sessionId,
-            "members" to members,
-            "createdAt" to FieldValue.serverTimestamp(),
-            "updatedAt" to FieldValue.serverTimestamp(),
-            "goalPlace" to "",
-            "goalStartHour" to 0,
-            "goalStartMinute" to 0,
-            "ready" to members.associateWith { false }
-        )
+        db.runTransaction { tx ->
+            val snap = tx.get(roomRef)
 
-        roomRef.set(data).await()
+            if (!snap.exists()) {
+                val data = mapOf(
+                    "sessionId" to sessionId,
+                    "members" to cleanMembers,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                    "goalPlace" to "",
+                    "goalStartHour" to 0,
+                    "goalStartMinute" to 0,
+                    "ready" to cleanMembers.associateWith { false },
+                    "finished" to cleanMembers.associateWith { false } // 新增
+                )
+                tx.set(roomRef, data)
+                return@runTransaction null
+            }
+
+            tx.set(
+                roomRef,
+                mapOf(
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                    "members" to FieldValue.arrayUnion(*cleanMembers.toTypedArray())
+                ),
+                SetOptions.merge()
+            )
+
+            val readyAny = snap.get("ready")
+            val readyMap: Map<String, Boolean> =
+                (readyAny as? Map<*, *>)?.mapNotNull { (k, v) ->
+                    val key = k as? String ?: return@mapNotNull null
+                    val b = v as? Boolean ?: return@mapNotNull null
+                    key to b
+                }?.toMap().orEmpty()
+
+            cleanMembers.forEach { uid ->
+                if (!readyMap.containsKey(uid)) {
+                    tx.set(roomRef, mapOf("ready.$uid" to false), SetOptions.merge())
+                }
+            }
+
+            val finishedAny = snap.get("finished")
+            val finishedMap: Map<String, Boolean> =
+                (finishedAny as? Map<*, *>)?.mapNotNull { (k, v) ->
+                    val key = k as? String ?: return@mapNotNull null
+                    val b = v as? Boolean ?: return@mapNotNull null
+                    key to b
+                }?.toMap().orEmpty()
+
+            cleanMembers.forEach { uid ->
+                if (!finishedMap.containsKey(uid)) {
+                    tx.set(roomRef, mapOf("finished.$uid" to false), SetOptions.merge())
+                }
+            }
+
+            null
+        }.await()
     }
 
     suspend fun sendMessage(sessionId: String, senderUid: String, text: String) {
@@ -138,38 +195,40 @@ class RunTempChatRepository(
             }
     }
 
-    suspend fun updateGoal(
-        sessionId: String,
-        place: String? = null,
-        hour: Int? = null,
-        minute: Int? = null
-    ) {
+    suspend fun updateGoal(sessionId: String, place: String? = null, hour: Int? = null, minute: Int? = null) {
         val updates = mutableMapOf<String, Any>()
         place?.let { updates["goalPlace"] = it }
         hour?.let { updates["goalStartHour"] = it.coerceIn(0, 23) }
         minute?.let { updates["goalStartMinute"] = it.coerceIn(0, 59) }
-
         if (updates.isEmpty()) return
 
-        roomDoc(sessionId).set(
-            mapOf("updatedAt" to FieldValue.serverTimestamp()),
-            SetOptions.merge()
-        ).await()
-
+        roomDoc(sessionId).set(mapOf("updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge()).await()
         roomDoc(sessionId).set(updates, SetOptions.merge()).await()
     }
 
     suspend fun setReady(sessionId: String, uid: String, ready: Boolean) {
         if (uid.isBlank()) return
+        roomDoc(sessionId).set(mapOf("updatedAt" to FieldValue.serverTimestamp()), SetOptions.merge()).await()
+        roomDoc(sessionId).set(mapOf("ready.$uid" to ready), SetOptions.merge()).await()
+    }
 
-        roomDoc(sessionId).set(
-            mapOf("updatedAt" to FieldValue.serverTimestamp()),
-            SetOptions.merge()
-        ).await()
+    suspend fun setFinished(
+        sessionId: String,
+        uid: String,
+        finished: Boolean
+    ) {
+        if (uid.isBlank()) {
+            throw IllegalStateException("UID is blank, cannot set finished")
+        }
 
-        roomDoc(sessionId).set(
-            mapOf("ready.$uid" to ready),
-            SetOptions.merge()
-        ).await()
+        val updates = mapOf(
+            "finished.$uid" to finished,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+
+        db.collection("run_temp_rooms")
+            .document(sessionId)
+            .set(updates, SetOptions.merge())
+            .await()
     }
 }
