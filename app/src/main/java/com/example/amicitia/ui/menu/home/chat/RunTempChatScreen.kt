@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.navOptions
 import coil3.compose.AsyncImage
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -77,10 +78,13 @@ fun RunTempChatScreen(
     val scope = rememberCoroutineScope()
 
     var input by remember { mutableStateOf("") }
-    val messages by repo.observeMessages(sessionId).collectAsState(initial = emptyList())
 
-    val otherUid = remember(messages, meUid) {
-        messages.firstOrNull { it.senderUid.isNotBlank() && it.senderUid != meUid }?.senderUid.orEmpty()
+    val messages by repo.observeMessages(sessionId).collectAsState(initial = emptyList())
+    val room by repo.observeRoom(sessionId).collectAsState(initial = RunRoomState())
+
+    // 對方 uid：從 members 取（最準）
+    val otherUid = remember(room.members, meUid) {
+        room.members.firstOrNull { it.isNotBlank() && it != meUid }.orEmpty()
     }
 
     var otherNickname by remember { mutableStateOf("聊天") }
@@ -95,18 +99,33 @@ fun RunTempChatScreen(
     }
 
     fun pushSnack(msg: String) {
-        scope.launch { snackbar.showSnackbar(msg) }
+        scope.launch { snackbar.showSnackbar(msg, withDismissAction = true) }
     }
 
-    // 目標狀態：地點＋開始時間
-    var goalPlace by remember { mutableStateOf("") }
+    // 目標設定 BottomSheet
+    var showGoalSheet by remember { mutableStateOf(false) }
+
+    // /help 只在送出 /help 時顯示
+    var showHelp by remember { mutableStateOf(false) }
+
+    // Ready 狀態
+    val myReady = room.ready[meUid] == true
+    val otherReadyNow = otherUid.isNotBlank() && room.ready[otherUid] == true
+
+    // 兩邊都就緒 -> 跳到 run_solo
+    LaunchedEffect(myReady, otherReadyNow) {
+        if (myReady && otherReadyNow) {
+            navController.navigate(
+                "run_solo",
+                navOptions { launchSingleTop = true }
+            )
+        }
+    }
+
+    // 預設時間（用於第一次還沒設定時）
     val now = remember {
         Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) to it.get(Calendar.MINUTE) }
     }
-    var goalStartHour by remember { mutableStateOf(now.first) }
-    var goalStartMinute by remember { mutableStateOf(now.second) }
-
-    var showGoalSheet by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -164,7 +183,7 @@ fun RunTempChatScreen(
                         modifier = Modifier.weight(1f),
                         placeholder = {
                             Text(
-                                text = "輸入訊息",
+                                text = "訊息（/help）",
                                 color = Color.White.copy(alpha = 0.6f)
                             )
                         },
@@ -186,17 +205,93 @@ fun RunTempChatScreen(
 
                     Button(
                         onClick = {
-                            val msg = input.trim()
-                            if (msg.isBlank()) return@Button
+                            val raw = input.trim()
+                            if (raw.isBlank()) return@Button
+
                             scope.launch {
+                                // 指令處理
+                                val lower = raw.lowercase()
+
+                                // /help
+                                if (lower == "/help") {
+                                    showHelp = true
+                                    input = ""
+                                    return@launch
+                                }
+
+                                // /finish /unfinish
+                                if (lower == "/finish") {
+                                    runCatching {
+                                        repo.setReady(sessionId, meUid, true)
+                                    }.onFailure {
+                                        Log.e("RunTempChat", "finish failed", it)
+                                        pushSnack("就緒失敗")
+                                    }
+                                    input = ""
+                                    return@launch
+                                }
+
+                                if (lower == "/unfinish") {
+                                    runCatching {
+                                        repo.setReady(sessionId, meUid, false)
+                                    }.onFailure {
+                                        Log.e("RunTempChat", "unfinish failed", it)
+                                        pushSnack("取消就緒失敗")
+                                    }
+                                    input = ""
+                                    return@launch
+                                }
+
+                                // /locate xxx 或 /location xxx
+                                if (lower.startsWith("/locate ") || lower.startsWith("/location ")) {
+                                    val place = raw.substringAfter(' ').trim()
+                                    if (place.isBlank()) {
+                                        pushSnack("請輸入地點，例如：/locate 台北101")
+                                        return@launch
+                                    }
+                                    runCatching {
+                                        repo.updateGoal(sessionId, place = place)
+                                    }.onFailure {
+                                        Log.e("RunTempChat", "update place failed", it)
+                                        pushSnack("更新地點失敗")
+                                    }
+                                    input = ""
+                                    return@launch
+                                }
+
+                                // /time HH:MM
+                                if (lower.startsWith("/time ")) {
+                                    val t = raw.substringAfter(' ').trim()
+                                    val parts = t.split(":")
+                                    if (parts.size != 2) {
+                                        pushSnack("時間格式要 HH:MM，例如：/time 06:30")
+                                        return@launch
+                                    }
+                                    val hh = parts[0].toIntOrNull()
+                                    val mm = parts[1].toIntOrNull()
+                                    if (hh == null || mm == null || hh !in 0..23 || mm !in 0..59) {
+                                        pushSnack("時間格式要 HH:MM，例如：/time 06:30")
+                                        return@launch
+                                    }
+                                    runCatching {
+                                        repo.updateGoal(sessionId, hour = hh, minute = mm)
+                                    }.onFailure {
+                                        Log.e("RunTempChat", "update time failed", it)
+                                        pushSnack("更新時間失敗")
+                                    }
+                                    input = ""
+                                    return@launch
+                                }
+
+                                // 一般訊息
                                 runCatching {
-                                    repo.sendMessage(sessionId, meUid, msg)
+                                    repo.sendMessage(sessionId, meUid, raw)
                                 }.onFailure {
                                     Log.e("RunTempChat", "send failed", it)
                                     pushSnack("送出失敗")
                                 }
+                                input = ""
                             }
-                            input = ""
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                     ) { Text("送出") }
@@ -213,9 +308,11 @@ fun RunTempChatScreen(
             ) {
                 item {
                     RunGoalCard(
-                        place = goalPlace,
-                        startHour = goalStartHour,
-                        startMinute = goalStartMinute,
+                        place = room.goalPlace,
+                        startHour = if (room.goalStartHour in 0..23) room.goalStartHour else now.first,
+                        startMinute = if (room.goalStartMinute in 0..59) room.goalStartMinute else now.second,
+                        myReady = myReady,
+                        otherReady = otherReadyNow,
                         onClick = { showGoalSheet = true }
                     )
                 }
@@ -241,10 +338,11 @@ fun RunTempChatScreen(
             }
         }
 
+        // BottomSheet：地點＋滾輪時間（按「設定完成」寫 DB，兩台同步）
         if (showGoalSheet) {
-            var draftPlace by remember(goalPlace) { mutableStateOf(goalPlace) }
-            var draftHour by remember(goalStartHour) { mutableStateOf(goalStartHour) }
-            var draftMinute by remember(goalStartMinute) { mutableStateOf(goalStartMinute) }
+            var draftPlace by remember(room.goalPlace) { mutableStateOf(room.goalPlace) }
+            var draftHour by remember(room.goalStartHour) { mutableStateOf(room.goalStartHour.coerceIn(0, 23)) }
+            var draftMinute by remember(room.goalStartMinute) { mutableStateOf(room.goalStartMinute.coerceIn(0, 59)) }
 
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -278,14 +376,14 @@ fun RunTempChatScreen(
                         color = Color.White
                     )
 
-                    Text(text = "跑去哪裡", color = CardSub)
+                    Text(text = "地點", color = CardSub)
                     OutlinedTextField(
                         value = draftPlace,
                         onValueChange = { draftPlace = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                text = "要打完整地址喔",
+                                text = "例如：河濱公園 / 校園操場",
                                 color = Color.White.copy(alpha = 0.6f)
                             )
                         },
@@ -303,7 +401,7 @@ fun RunTempChatScreen(
                         )
                     )
 
-                    Text(text = "幾點開始", color = CardSub)
+                    Text(text = "開始時間", color = CardSub)
 
                     WheelTimeInline(
                         hour = draftHour,
@@ -314,10 +412,21 @@ fun RunTempChatScreen(
 
                     Button(
                         onClick = {
-                            goalPlace = draftPlace.trim()
-                            goalStartHour = draftHour
-                            goalStartMinute = draftMinute
-                            showGoalSheet = false
+                            scope.launch {
+                                runCatching {
+                                    repo.updateGoal(
+                                        sessionId = sessionId,
+                                        place = draftPlace.trim(),
+                                        hour = draftHour,
+                                        minute = draftMinute
+                                    )
+                                }.onFailure {
+                                    Log.e("RunTempChat", "updateGoal failed", it)
+                                    pushSnack("設定失敗")
+                                    return@launch
+                                }
+                                showGoalSheet = false
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -330,6 +439,28 @@ fun RunTempChatScreen(
                 }
             }
         }
+
+        // /help：極簡，且只在送出 /help 時出現
+        if (showHelp) {
+            AlertDialog(
+                onDismissRequest = { showHelp = false },
+                confirmButton = {
+                    TextButton(onClick = { showHelp = false }) { Text("知道了") }
+                },
+                title = { Text("指令") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("/finish  就緒")
+                        Text("/unfinish  取消就緒")
+                        Text("/locate 台北101  設定地點")
+                        Text("/time 06:30  設定時間")
+                    }
+                },
+                containerColor = Color(0xFF222222),
+                titleContentColor = Color.White,
+                textContentColor = Color.White.copy(alpha = 0.85f)
+            )
+        }
     }
 }
 
@@ -338,11 +469,20 @@ private fun RunGoalCard(
     place: String,
     startHour: Int,
     startMinute: Int,
+    myReady: Boolean,
+    otherReady: Boolean,
     onClick: () -> Unit
 ) {
-    val hasGoal = place.isNotBlank()
     val hh = startHour.toString().padStart(2, '0')
     val mm = startMinute.toString().padStart(2, '0')
+    val hasPlace = place.trim().isNotEmpty()
+
+    val statusText = when {
+        myReady && otherReady -> "雙方就緒"
+        myReady && !otherReady -> "你已就緒，等待對方"
+        !myReady && otherReady -> "對方已就緒"
+        else -> "未就緒"
+    }
 
     Surface(
         onClick = onClick,
@@ -373,26 +513,24 @@ private fun RunGoalCard(
             }
 
             Text(
-                text = if (hasGoal) "地點：${place.trim()}" else "尚未設定跑步目標",
+                text = if (hasPlace) place.trim() else "未設定地點",
                 color = Color.White.copy(alpha = 0.90f),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (hasGoal) {
-                Text(
-                    text = "時間：$hh:$mm",
-                    color = CardSub,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                Text(
-                    text = "點擊設定地點與時間",
-                    color = CardHint,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            Text(
+                text = "$hh:$mm",
+                color = CardSub,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                text = statusText,
+                color = Color.White.copy(alpha = 0.55f),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -422,7 +560,6 @@ private fun WheelTimeInline(
                 .height(containerHeight)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            // 中間選中膠囊（用固定寬度排版，確保時/分完全對齊）
             Row(
                 modifier = Modifier.align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically,
@@ -460,7 +597,6 @@ private fun WheelTimeInline(
                 )
             }
 
-            // 兩個滾輪（同樣固定寬度排版）
             Row(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -469,7 +605,7 @@ private fun WheelTimeInline(
                 WheelColumn(
                     width = colWidth,
                     rangeMax = 23,
-                    initialValue = hour,
+                    initialValue = hour.coerceIn(0, 23),
                     itemHeight = itemHeight,
                     visibleCount = visibleCount,
                     onValueChange = onHourChange
@@ -493,7 +629,7 @@ private fun WheelTimeInline(
                 WheelColumn(
                     width = colWidth,
                     rangeMax = 59,
-                    initialValue = minute,
+                    initialValue = minute.coerceIn(0, 59),
                     itemHeight = itemHeight,
                     visibleCount = visibleCount,
                     onValueChange = onMinuteChange
@@ -527,7 +663,6 @@ private fun WheelColumn(
     )
 
     val fling = rememberSnapFlingBehavior(lazyListState = state)
-
     val density = LocalDensity.current
 
     LaunchedEffect(state, values, paddingCount, itemHeight) {

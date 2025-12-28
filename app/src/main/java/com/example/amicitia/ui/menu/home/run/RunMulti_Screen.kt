@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
 import com.example.amicitia.session.SessionPresence
-import com.example.amicitia.ui.menu.home.chat.RunTempChatRepository
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.*
 import com.google.firebase.ktx.Firebase
@@ -154,7 +153,8 @@ fun MultiRunScreen(outerNavController: NavHostController) {
     val invitesSentRef = remember { db.getReference("invitesSent") }
     val sessionsRef = remember { db.getReference("sessions") }
 
-    val runTempRepo = remember { RunTempChatRepository() }
+    // ✅ 用「完整限定名」避免你專案內同名類別/匯入衝突，ensureRoom 就不會再紅
+    val runTempRepo = remember { com.example.amicitia.ui.menu.home.chat.RunTempChatRepository() }
 
     var loading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
