@@ -83,7 +83,7 @@ fun RunTempChatScreen(
     var otherAvatarUrl by remember { mutableStateOf("") }
 
     LaunchedEffect(otherUid) {
-       if (otherUid.isBlank()) return@LaunchedEffect
+        if (otherUid.isBlank()) return@LaunchedEffect
         repo.getUserProfileOnce(otherUid) { nick, avatar ->
             otherNickname = nick
             otherAvatarUrl = avatar
@@ -95,20 +95,17 @@ fun RunTempChatScreen(
     }
 
     var showHelp by remember { mutableStateOf(false) }
-    var showGoalSheet by remember { mutableStateOf(false) }
+    var showGoalSheet by remember { mutableStateOf(false) } // 你原本有用到就先留著
 
-    val myReady = room.ready[meUid] == true
+    // ✅ 只留 ready
+    val myReady = meUid.isNotBlank() && room.ready[meUid] == true
     val otherReadyNow = otherUid.isNotBlank() && room.ready[otherUid] == true
 
-    // 寫法 A：finish 與 ready 分離
-    val myFinished = room.finished[meUid] == true
-    val otherFinishedNow = otherUid.isNotBlank() && room.finished[otherUid] == true
-
-    // 兩人都 /finish 才跳（只跳一次）
+    // ✅ 兩邊都 ready 就跳轉（只看 Firestore）
     var hasNavigated by rememberSaveable(sessionId) { mutableStateOf(false) }
-    LaunchedEffect(myFinished, otherFinishedNow) {
+    LaunchedEffect(myReady, otherReadyNow) {
         if (hasNavigated) return@LaunchedEffect
-        if (myFinished && otherFinishedNow) {
+        if (myReady && otherReadyNow) {
             hasNavigated = true
             navController.navigate(
                 TARGET_ROUTE,
@@ -209,27 +206,30 @@ fun RunTempChatScreen(
                                         input = ""
                                     }
 
+                                    // ✅ /finish => setReady(true)
                                     lower == "/finish" -> {
-                                        runCatching { repo.setFinished(sessionId, meUid, true) }
+                                        runCatching { repo.setReady(sessionId, meUid, true) }
                                             .onFailure {
-                                                Log.e("RunTempChat", "finish failed", it)
+                                                Log.e("RunTempChat", "finish(setReady) failed", it)
                                                 pushSnack("完成失敗")
                                             }
                                         input = ""
                                     }
 
+                                    // ✅ /unfinish => setReady(false)
                                     lower == "/unfinish" -> {
-                                        runCatching { repo.setFinished(sessionId, meUid, false) }
+                                        runCatching { repo.setReady(sessionId, meUid, false) }
                                             .onFailure {
-                                                Log.e("RunTempChat", "unfinish failed", it)
+                                                Log.e("RunTempChat", "unfinish(setReady) failed", it)
                                                 pushSnack("取消完成失敗")
                                             }
                                         input = ""
                                     }
 
                                     lower.startsWith("/locate ") || lower.startsWith("/location ") -> {
-                                        if (myFinished) {
-                                            pushSnack("你已 /finish，無法再修改目標（輸入 /unfinish 解除）")
+                                        // ✅ 只要自己 ready 就鎖定（避免你之前死鎖/不同步）
+                                        if (myReady) {
+                                            pushSnack("你已 /finish（ready），無法再修改目標（輸入 /unfinish 解除）")
                                             return@launch
                                         }
                                         val place = raw.substringAfter(' ').trim()
@@ -246,8 +246,8 @@ fun RunTempChatScreen(
                                     }
 
                                     lower.startsWith("/time ") -> {
-                                        if (myFinished) {
-                                            pushSnack("你已 /finish，無法再修改目標（輸入 /unfinish 解除）")
+                                        if (myReady) {
+                                            pushSnack("你已 /finish（ready），無法再修改目標（輸入 /unfinish 解除）")
                                             return@launch
                                         }
                                         val t = raw.substringAfter(' ').trim()
@@ -301,10 +301,8 @@ fun RunTempChatScreen(
                         startMinute = if (room.goalStartMinute in 0..59) room.goalStartMinute else now.second,
                         myReady = myReady,
                         otherReady = otherReadyNow,
-                        myFinished = myFinished,
-                        otherFinished = otherFinishedNow,
                         onClick = {
-                            if (myFinished) pushSnack("你已 /finish，目標已鎖定（輸入 /unfinish 可解除）")
+                            if (myReady) pushSnack("你已 /finish（ready），目標已鎖定（輸入 /unfinish 可解除）")
                             else showGoalSheet = true
                         }
                     )
@@ -349,17 +347,12 @@ private fun RunGoalCard(
     startMinute: Int,
     myReady: Boolean,
     otherReady: Boolean,
-    myFinished: Boolean,
-    otherFinished: Boolean,
     onClick: () -> Unit
 ) {
     val hh = startHour.toString().padStart(2, '0')
     val mm = startMinute.toString().padStart(2, '0')
 
     val statusText = when {
-        myFinished && otherFinished -> "雙方已完成"
-        myFinished && !otherFinished -> "你已完成，等待對方"
-        !myFinished && otherFinished -> "對方已完成"
         myReady && otherReady -> "雙方就緒"
         myReady && !otherReady -> "你已就緒，等待對方"
         !myReady && otherReady -> "對方已就緒"
@@ -390,7 +383,7 @@ private fun RunGoalCard(
                 Icon(
                     imageVector = Icons.Filled.Edit,
                     contentDescription = "編輯",
-                    tint = if (myFinished) CardIcon.copy(alpha = 0.35f) else CardIcon
+                    tint = if (myReady) CardIcon.copy(alpha = 0.35f) else CardIcon
                 )
             }
 
