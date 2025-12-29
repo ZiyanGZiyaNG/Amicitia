@@ -191,7 +191,7 @@ private fun MenuNavHost(
         composable("run_temp_chat/{sessionId}") { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
             RunTempChatScreen(
-                navController = navController,
+                outerNavController = navController,
                 sessionId = sessionId
             )
         }
