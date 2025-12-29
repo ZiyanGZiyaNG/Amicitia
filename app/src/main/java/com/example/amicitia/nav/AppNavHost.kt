@@ -1,89 +1,45 @@
 package com.example.amicitia.nav
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.amicitia.ui.login.LoginScreen
-import com.example.amicitia.ui.menu.MenuScreen
-import com.example.amicitia.ui.menu.profile.settings.AccountScreen
-import com.example.amicitia.ui.menu.profile.settings.NotifyScreen
-import com.example.amicitia.ui.menu.profile.settings.PrivacyScreen
-import com.example.amicitia.ui.menu.profile.settings.AboutUsScreen
-import com.example.amicitia.ui.register.RegisterScreen
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.example.amicitia.ui.menu.home.run.RunSessionScreen
 import com.google.firebase.ktx.Firebase
-import com.example.amicitia.ui.menu.chat.ChatRoomScreen
-import com.example.amicitia.ui.menu.home.chat.RunTempChatScreen
-
-object Routes {
-    const val LOGIN = "login"
-    const val REGISTER = "register"
-    const val MENU = "menu"
-
-    const val ACCOUNT = "account"
-    const val NOTIFY = "notify"
-    const val PRIVACY = "privacy"
-    const val ABOUT = "about"
-    const val MAP = "map"
-    const val HOME = "home"
-}
 
 @Composable
-fun AppNavHost(
-    navController: NavHostController
-) {
+fun AppNavHost(navController: NavHostController) {
     val auth = Firebase.auth
-    val start = if (auth.currentUser == null) Routes.LOGIN else Routes.MENU
 
-    DisposableEffect(auth, navController) {
-        val listener = FirebaseAuth.AuthStateListener { a ->
-            val to = if (a.currentUser == null) Routes.LOGIN else Routes.MENU
-            navController.navigate(to) {
-                popUpTo(0) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-        auth.addAuthStateListener(listener)
-        onDispose { auth.removeAuthStateListener(listener) }
+    var startDestination by remember { mutableStateOf(Routes.LOGIN) }
+    LaunchedEffect(Unit) {
+        startDestination = if (auth.currentUser != null) Routes.MENU else Routes.LOGIN
     }
 
     NavHost(
         navController = navController,
-        startDestination = start
+        startDestination = startDestination
     ) {
-        composable(Routes.LOGIN)    { LoginScreen(navController) }
-        composable(Routes.REGISTER) { RegisterScreen(navController) }
-        composable(Routes.MENU)     { MenuScreen(outerNavController = navController) }
-
-        composable(Routes.ACCOUNT)  { AccountScreen(navController) }
-        composable(Routes.NOTIFY)   { NotifyScreen(navController) }
-        composable(Routes.PRIVACY)  { PrivacyScreen(navController) }
-        composable(Routes.ABOUT)    { AboutUsScreen(navController) }
-
-
-        composable("run_session/{sessionId}") { backStackEntry ->
-            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
-            RunSessionScreen(navController = navController, sessionId = sessionId)
-        }
-
-        composable("room/{roomId}") { backStackEntry ->
-            val roomId = backStackEntry.arguments?.getString("roomId") ?: return@composable
-            ChatRoomScreen(
-                roomId = roomId,
-                onBack = { navController.popBackStack() }
+        composable(Routes.LOGIN) {
+            // 這裡如果你 LoginScreen 參數不是 outerNavController，改回你專案原本的就好
+            com.example.amicitia.ui.login.LoginScreen(
+                outerNavController = navController
             )
         }
 
-        composable("run_temp_chat/{sessionId}") { backStack ->
-            val sessionId = backStack.arguments?.getString("sessionId") ?: return@composable
-            RunTempChatScreen(
-                outerNavController = navController,
-                sessionId = sessionId
+        composable(Routes.REGISTER) {
+            com.example.amicitia.ui.register.RegisterScreen(
+                outerNavController = navController
             )
+        }
+
+        composable(Routes.MENU) {
+            com.example.amicitia.ui.menu.MenuScreen(outerNavController = navController)
         }
     }
 }

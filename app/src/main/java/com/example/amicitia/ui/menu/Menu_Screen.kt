@@ -1,11 +1,7 @@
 package com.example.amicitia.ui.menu
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,124 +17,89 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.amicitia.nav.Routes
-import com.example.amicitia.ui.menu.chat.ChatNavHost
-import com.example.amicitia.ui.menu.home.HomeRoute
-import com.example.amicitia.ui.menu.home.run.MultiRunScreen
-import com.example.amicitia.ui.menu.home.run.RunModeScreen
-import com.example.amicitia.ui.menu.home.run.RunSoloScreen
-import com.example.amicitia.ui.menu.map.MapRoute
-import com.example.amicitia.ui.menu.profile.ProfileRoute
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import com.example.amicitia.ui.menu.home.chat.RunTempChatScreen
-
-private val BgDark = Color(0xFF1E1E1E)
-private val PrimaryBlue = Color(0xFF3F51B5)
 
 private object MenuTabs {
-    const val HOME = "menu_home"
-    const val MAP = "menu_map"
-    const val CHAT = "chat_screen"
-    const val PROFILE = "menu_profile"
+    const val HOME = "home"
+    const val MAP = "map"
+    const val CHAT = "chat"
+    const val PROFILE = "profile"
 }
 
-private data class BottomItem(val route: String, val icon: ImageVector, val label: String)
+private data class BottomItem(
+    val route: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val label: String
+)
 
-private val bottomItems = listOf(
+private val BottomItems = listOf(
     BottomItem(MenuTabs.HOME, Icons.Outlined.Home, "首頁"),
     BottomItem(MenuTabs.MAP, Icons.Outlined.Map, "地圖"),
     BottomItem(MenuTabs.CHAT, Icons.Outlined.ChatBubbleOutline, "聊天"),
     BottomItem(MenuTabs.PROFILE, Icons.Outlined.Person, "個人")
 )
 
-@Composable
-private fun AuthBackground(
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier.background(BgDark)) {
-        BottomDecorBackground(
-            modifier = Modifier.matchParentSize(),
-            tint = PrimaryBlue
-        )
-    }
-}
+private val BgDark = Color(0xFF1E1E1E)
+private val PrimaryBlue = Color(0xFF3F51B5)
 
 @Composable
-private fun BottomDecorBackground(
-    modifier: Modifier = Modifier,
-    tint: Color
-) {
-    Canvas(modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        drawRect(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    tint.copy(alpha = 0.14f),
-                    Color.Transparent
-                ),
-                center = Offset(w * 0.5f, h * 0.88f),
-                radius = h * 0.75f
+private fun AuthBackground(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.background(BgDark)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        PrimaryBlue.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
+                    center = Offset(w * 0.5f, h * 0.88f),
+                    radius = h * 0.75f
+                )
             )
-        )
+        }
     }
 }
 
 @Composable
 fun MenuScreen(outerNavController: NavHostController) {
-    val innerNav: NavHostController = rememberNavController()
+    val innerNav = rememberNavController()
     val auth = Firebase.auth
 
     val handleLogout: () -> Unit = remember {
         {
             auth.signOut()
-            outerNavController.navigate(Routes.LOGIN) {
+            outerNavController.navigate(com.example.amicitia.nav.Routes.LOGIN) {
                 popUpTo(outerNavController.graph.startDestinationId) { inclusive = true }
                 launchSingleTop = true
             }
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-    ) {
-        AuthBackground(modifier = Modifier.matchParentSize())
+    Box(modifier = Modifier.fillMaxSize()) {
+        AuthBackground(Modifier.matchParentSize())
 
         Scaffold(
             containerColor = Color.Transparent,
-            bottomBar = { SolidPillBottomBar(navController = innerNav) }
-        ) { innerPadding ->
-            val route = currentRoute(innerNav)
-
-            val contentModifier =
-                if (route == MenuTabs.MAP) Modifier.fillMaxSize()
-                else Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-
+            bottomBar = { BottomBar(innerNav) }
+        ) { padding ->
             MenuNavHost(
                 navController = innerNav,
                 outerNavController = outerNavController,
-                modifier = contentModifier,
+                modifier = Modifier.padding(padding),
                 onLogout = handleLogout
             )
         }
@@ -158,7 +119,7 @@ private fun MenuNavHost(
         modifier = modifier
     ) {
         composable(MenuTabs.HOME) {
-            HomeRoute(
+            com.example.amicitia.ui.menu.home.HomeRoute(
                 onSportSelected = { sportKey ->
                     when (sportKey) {
                         "run" -> navController.navigate("run_mode")
@@ -168,29 +129,51 @@ private fun MenuNavHost(
             )
         }
 
-        composable(MenuTabs.MAP) { MapRoute() }
+        composable(MenuTabs.MAP) {
+            com.example.amicitia.ui.menu.map.MapRoute()
+        }
 
-        composable(route = MenuTabs.CHAT) {
-            ChatNavHost(
+        composable(MenuTabs.CHAT) {
+            com.example.amicitia.ui.menu.home.chat.ChatNavHost(
                 outerNavController = outerNavController
             )
         }
 
         composable(MenuTabs.PROFILE) {
-            ProfileRoute(
+            com.example.amicitia.ui.menu.profile.ProfileRoute(
                 outerNavController = outerNavController,
                 onLogout = onLogout
             )
         }
 
-        composable("run_mode") { RunModeScreen(navController) }
-        composable("run_solo") { RunSoloScreen(navController = navController) }
+        // ---------------- Run flow 全部放內層 graph ----------------
 
+        composable("run_mode") {
+            com.example.amicitia.ui.menu.home.run.RunModeScreen(navController = navController)
+        }
 
-        composable("run_multi") { MultiRunScreen(outerNavController = outerNavController) }
-        composable("run_temp_chat/{sessionId}") { backStackEntry ->
+        composable("run_solo") {
+            com.example.amicitia.ui.menu.home.run.RunSoloScreen(navController = navController)
+        }
+
+        // ✅ 關鍵：把「內層 navController」當作 MultiRunScreen 的 outerNavController 傳進去
+        // 這樣 MultiRunScreen 內 navigate("run_temp_chat/...") 一定找得到
+        composable("run_multi") {
+            com.example.amicitia.ui.menu.home.run.MultiRunScreen(outerNavController = navController)
+        }
+
+        composable(route = "run_temp_chat/{sessionId}") { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
-            RunTempChatScreen(
+            com.example.amicitia.ui.menu.home.chat.RunTempChatScreen(
+                navController = navController,
+                sessionId = sessionId
+            )
+        }
+
+        // 你選 a：多人完成後要跳「仿 Solo 畫面」就走這條
+        composable(route = "run_multi_solo_like/{sessionId}") { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+            com.example.amicitia.ui.menu.home.run.RunMultiSoloLikeScreen(
                 outerNavController = navController,
                 sessionId = sessionId
             )
@@ -199,119 +182,42 @@ private fun MenuNavHost(
 }
 
 @Composable
-private fun currentRoute(navController: NavHostController): String? {
-    val entry by navController.currentBackStackEntryAsState()
-    return entry?.destination?.route
-}
+private fun BottomBar(navController: NavHostController) {
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val current = backStackEntry?.destination?.route
 
-@Composable
-private fun SolidPillBottomBar(navController: NavHostController) {
-    val route = currentRoute(navController)
-    val pillShape = RoundedCornerShape(28.dp)
-    val barBase = BgDark
+    val show = current in setOf(MenuTabs.HOME, MenuTabs.MAP, MenuTabs.CHAT, MenuTabs.PROFILE)
+    if (!show) {
+        Spacer(Modifier.height(0.dp))
+        return
+    }
 
-    Box(
+    val shape = RoundedCornerShape(22.dp)
+    NavigationBar(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 0.dp),
-        contentAlignment = Alignment.BottomCenter
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .clip(shape),
+        containerColor = BgDark.copy(alpha = 0.92f)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(pillShape)
-                .background(barBase)
-                .drawBehind {
-                    val r = 28.dp.toPx()
-
-                    // ✅ 修正：startY/endY 要放在 Brush.verticalGradient 裡，不是 drawRect
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                BgDark,
-                                BgDark.copy(alpha = 0f)
-                            ),
-                            startY = 0f,
-                            endY = 22.dp.toPx()
-                        )
-                    )
-
-                    drawRoundRect(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.06f),
-                                Color.Transparent
-                            ),
-                            start = Offset(0f, 0f),
-                            end = Offset(size.width, size.height)
-                        ),
-                        cornerRadius = CornerRadius(r, r)
-                    )
-
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.10f)
-                            ),
-                            startY = size.height * 0.40f,
-                            endY = size.height
-                        ),
-                        cornerRadius = CornerRadius(r, r)
-                    )
-                }
-                .border(1.dp, Color.White.copy(alpha = 0.10f), pillShape)
-                .padding(1.dp)
-        ) {
-            NavigationBar(
-                containerColor = Color.Transparent,
-                tonalElevation = 0.dp,
-                modifier = Modifier.matchParentSize()
-            ) {
-                bottomItems.forEach { item ->
-                    val selected = route == item.route
-
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            if (item.route == MenuTabs.HOME) {
-                                navController.popBackStack(MenuTabs.HOME, inclusive = false)
-                            } else {
-                                navController.navigate(item.route) {
-                                    launchSingleTop = true
-                                    popUpTo(MenuTabs.HOME) { saveState = true }
-                                    restoreState = true
-                                }
-                            }
-                        },
-                        icon = { AnimatedIcon(selected, item.icon, item.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PrimaryBlue,
-                            unselectedIconColor = Color.White.copy(alpha = 0.78f),
-                            indicatorColor = Color.White.copy(alpha = 0.08f)
-                        ),
-                        alwaysShowLabel = false
-                    )
-                }
-            }
+        BottomItems.forEach { item ->
+            val selected = current == item.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    navController.navigate(item.route) {
+                        launchSingleTop = true
+                        restoreState = true
+                        popUpTo(MenuTabs.HOME) { saveState = true }
+                    }
+                },
+                icon = { Icon(item.icon, contentDescription = item.label) },
+                label = null,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = PrimaryBlue,
+                    unselectedIconColor = Color.White.copy(alpha = 0.70f),
+                    indicatorColor = Color.White.copy(alpha = 0.06f)
+                )
+            )
         }
     }
-}
-
-@Composable
-private fun AnimatedIcon(selected: Boolean, icon: ImageVector, contentDescription: String?) {
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.15f else 1f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "icon-scale"
-    )
-
-    Icon(
-        imageVector = icon,
-        contentDescription = contentDescription,
-        modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale),
-        tint = if (selected) PrimaryBlue else Color.White.copy(alpha = 0.78f)
-    )
 }

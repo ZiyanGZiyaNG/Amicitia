@@ -22,16 +22,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
 import coil3.compose.AsyncImage
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-private const val TARGET_ROUTE = "run_solo"
+private const val TARGET_ROUTE = "run_multi_solo_like"
 
 private val BgDark = Color(0xFF1E1E1E)
 private val PrimaryBlue = Color(0xFF3F51B5)
@@ -60,7 +59,7 @@ private fun AuthBackground(modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RunTempChatScreen(
-    outerNavController: NavHostController,
+    navController: NavHostController,
     sessionId: String
 ) {
     val repo = remember { RunTempChatRepository() }
@@ -68,8 +67,9 @@ fun RunTempChatScreen(
 
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
     fun pushSnack(msg: String) {
-        scope.launch { snackbar.showSnackbar(message = msg, withDismissAction = true) }
+        scope.launch { snackbar.showSnackbar(msg, withDismissAction = true) }
     }
 
     var input by remember { mutableStateOf("") }
@@ -86,51 +86,34 @@ fun RunTempChatScreen(
 
     LaunchedEffect(otherUid) {
         if (otherUid.isBlank()) return@LaunchedEffect
-        runCatching {
-            repo.getUserProfileOnce(otherUid) { nick, avatar ->
-                otherNickname = nick
-                otherAvatarUrl = avatar
-            }
-        }.onFailure {
-            Log.e("RunTempChat", "getUserProfileOnce failed", it)
+        repo.getUserProfileOnce(otherUid) { nick, avatar ->
+            otherNickname = nick
+            otherAvatarUrl = avatar
         }
     }
 
     var showHelp by remember { mutableStateOf(false) }
-    var showGoalSheet by remember { mutableStateOf(false) } // 你原本有用到就先留著
+    var showGoalSheet by remember { mutableStateOf(false) }
 
-    // ✅ 先算 ready（一定要在 LaunchedEffect 前）
+    // ✅ 只留 ready
     val myReady = meUid.isNotBlank() && room.ready[meUid] == true
     val otherReadyNow = otherUid.isNotBlank() && room.ready[otherUid] == true
 
-    // ✅ 只留一個導航旗標
+    // ✅ 雙方 ready → 跳到「multi 專用跑步畫面」
     var hasNavigated by rememberSaveable(sessionId) { mutableStateOf(false) }
-
-    // ✅ 只留一個 LaunchedEffect：雙方 ready → 跳到 run_solo
     LaunchedEffect(myReady, otherReadyNow) {
         if (hasNavigated) return@LaunchedEffect
         if (myReady && otherReadyNow) {
             hasNavigated = true
-
             runCatching {
-                outerNavController.navigate(
-                    TARGET_ROUTE,
-                    navOptions {
-                        launchSingleTop = true
-                        popUpTo(outerNavController.graph.findStartDestination().id) {
-                            inclusive = false
-                        }
-                    }
+                navController.navigate(
+                    "$TARGET_ROUTE/$sessionId",
+                    navOptions { launchSingleTop = true }
                 )
             }.onFailure { e ->
-                Log.e(
-                    "RunTempChat",
-                    "Navigate to $TARGET_ROUTE failed (destination missing or wrong nav graph).",
-                    e
-                )
-                // 避免卡死在 hasNavigated=true
                 hasNavigated = false
-                pushSnack("跳轉失敗：找不到 $TARGET_ROUTE（看 Logcat）")
+                Log.e("RunTempChat", "navigate failed: $TARGET_ROUTE/$sessionId", e)
+                pushSnack("跳轉失敗（看 Logcat）")
             }
         }
     }
@@ -171,7 +154,7 @@ fun RunTempChatScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { outerNavController.popBackStack() }) {
+                        IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
